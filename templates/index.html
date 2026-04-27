@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC TuneUp</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a; --text: #e4e4e7;
+    --muted: #8b8d97; --accent: #6366f1; --green: #22c55e; --yellow: #eab308;
+    --red: #ef4444; --orange: #f97316; --blue: #3b82f6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* Header */
+  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header h1 span { color: var(--accent); }
+  .hdr-right { display: flex; align-items: center; gap: 10px; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .badge-admin { background: #22c55e22; color: var(--green); border: 1px solid #22c55e44; }
+  .badge-limited { background: #eab30822; color: var(--yellow); border: 1px solid #eab30844; }
+  .badge-impact { background: #6366f122; color: var(--accent); border: 1px solid #6366f144; font-size: 12px; padding: 4px 10px; border-radius: 6px; font-weight: 700; }
+  .badge-effort { background: #22c55e11; color: var(--green); font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 24px; }
+
+  /* Admin banner */
+  .admin-banner {
+    background: linear-gradient(135deg, #eab30811, #f9731611);
+    border: 1px solid #eab30833; border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7;
+  }
+  .admin-banner strong { color: var(--yellow); }
+  .admin-banner code {
+    background: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent);
+  }
+  .admin-banner ol { padding-left: 20px; margin-top: 6px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 3px; margin-bottom: 22px; background: var(--card); padding: 3px; border-radius: 10px; border: 1px solid var(--border); flex-wrap: wrap; width: fit-content; }
+  .tab { padding: 7px 15px; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 7px; font-family: inherit; font-size: 13px; font-weight: 500; }
+  .tab.active { background: var(--accent); color: white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Health ring */
+  .health-row { display: flex; align-items: center; gap: 32px; margin-bottom: 24px; flex-wrap: wrap; }
+  .health-ring { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .health-ring svg { transform: rotate(-90deg); }
+  .health-ring .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 36px; font-weight: 800; }
+  .health-info { flex: 1; min-width: 200px; }
+  .health-info h2 { font-size: 20px; margin-bottom: 4px; }
+  .health-info p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+  /* Stat strip */
+  .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; text-align: center; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-val { font-size: 24px; font-weight: 700; margin: 2px 0; }
+  .stat-sub { font-size: 11px; color: var(--muted); }
+  .stat-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  /* Top Fixes - the hero section */
+  .topfix-section { margin-bottom: 28px; }
+  .topfix-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .topfix-header h2 { font-size: 17px; }
+  .fix-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 10px; transition: border-color 0.2s;
+  }
+  .fix-card:hover { border-color: #3a3d4a; }
+  .fix-card.high { border-left: 3px solid var(--red); }
+  .fix-card.medium { border-left: 3px solid var(--yellow); }
+  .fix-card.low { border-left: 3px solid var(--green); }
+  .fix-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .fix-main { flex: 1; min-width: 0; }
+  .fix-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+  .fix-title { font-weight: 700; font-size: 15px; }
+  .fix-sev { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+  .fix-sev.high { background: #ef444422; color: var(--red); }
+  .fix-sev.medium { background: #eab30822; color: var(--yellow); }
+  .fix-sev.low { background: #22c55e22; color: var(--green); }
+  .fix-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+  .fix-how { font-size: 12px; color: var(--text); background: #ffffff06; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; line-height: 1.6; }
+  .fix-how strong { color: var(--accent); }
+  .fix-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .fix-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+  /* Buttons */
+  .btn { border: none; border-radius: 8px; padding: 8px 16px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-warn { background: var(--orange); color: #000; }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); background: #1e2130; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-lg { padding: 12px 24px; font-size: 15px; }
+  .refresh-btn { background: var(--accent); color: white; border: none; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; }
+
+  /* Fix-all banner */
+  .fixall-banner {
+    background: linear-gradient(135deg, #6366f118, #22c55e10);
+    border: 1px solid #6366f133; border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .fixall-text h3 { font-size: 16px; margin-bottom: 2px; }
+  .fixall-text p { font-size: 13px; color: var(--muted); }
+
+  /* Section */
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .section-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+
+  /* Tip */
+  .tip { background: #6366f10a; border: 1px solid #6366f122; border-radius: 10px; padding: 14px 18px; margin-bottom: 14px; font-size: 13px; line-height: 1.6; }
+  .tip strong { color: var(--accent); }
+  .tip ol, .tip ul { padding-left: 18px; margin-top: 4px; }
+
+  /* Cards & Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card .big-num { font-size: 28px; font-weight: 700; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--muted); background: #141620; letter-spacing: 0.5px; }
+  td { padding: 9px 14px; font-size: 13px; border-top: 1px solid var(--border); }
+  tr:hover td { background: #1e2130; }
+
+  /* Startup */
+  .startup-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+  .startup-name { font-weight: 600; font-size: 14px; }
+  .startup-cmd { font-size: 11px; color: var(--muted); word-break: break-all; }
+  .startup-source { font-size: 10px; padding: 2px 8px; background: var(--border); border-radius: 4px; white-space: nowrap; }
+
+  /* Duplicates */
+  .dup-group { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+  .dup-file { font-size: 12px; color: var(--muted); word-break: break-all; display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
+  .dup-waste { font-size: 13px; color: var(--orange); font-weight: 600; }
+
+  /* Input */
+  .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .text-input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-family: inherit; font-size: 14px; }
+  .text-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--accent); border-radius: 10px; padding: 12px 18px; font-size: 14px; max-width: 400px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .no-issues { text-align: center; color: var(--green); padding: 28px; font-size: 15px; }
+  .loading { color: var(--muted); text-align: center; padding: 32px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>PC</span> TuneUp</h1>
+  <div class="hdr-right">
+    <span id="admin-badge" class="badge badge-limited">Checking...</span>
+    <button class="refresh-btn" onclick="refreshAll()">Scan Again</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Admin Banner (shown when NOT admin) -->
+  <div class="admin-banner" id="admin-banner" style="display:none;">
+    <strong>You're running in Limited Mode.</strong> Some fixes (like stopping services and cleaning update files) need admin access. Here's how to get full access:
+    <ol>
+      <li>Close this app (press Ctrl+C in the black terminal window)</li>
+      <li>Open the <strong>pc-tuneup</strong> folder</li>
+      <li>Right-click <code>start-as-admin.bat</code> and choose <strong>"Run as administrator"</strong></li>
+    </ol>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="main-tabs">
+    <button class="tab active" data-tab="dashboard">Fix Problems</button>
+    <button class="tab" data-tab="cleanup">Free Space</button>
+    <button class="tab" data-tab="processes">Running Apps</button>
+    <button class="tab" data-tab="startup">Startup Apps</button>
+    <button class="tab" data-tab="health">PC Health</button>
+    <button class="tab" data-tab="network">Network</button>
+  </div>
+
+  <!-- ==================== FIX PROBLEMS ==================== -->
+  <div id="tab-dashboard" class="tab-content active">
+    <!-- Health + Stats row -->
+    <div class="health-row">
+      <div class="health-ring">
+        <svg width="130" height="130" viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="56" fill="none" stroke="#2a2d3a" stroke-width="9"/>
+          <circle id="health-circle" cx="65" cy="65" r="56" fill="none" stroke="#22c55e" stroke-width="9" stroke-linecap="round" stroke-dasharray="352" stroke-dashoffset="352"/>
+        </svg>
+        <div class="score-text" id="health-score">--</div>
+      </div>
+      <div class="health-info">
+        <h2 id="health-title">Scanning your PC...</h2>
+        <p id="health-desc">Looking for problems that are slowing you down.</p>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-card"><div class="stat-label">CPU</div><div class="stat-val" id="cpu-val">--</div><div class="stat-sub" id="cpu-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="cpu-bar" style="width:0"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Memory</div><div class="stat-val" id="ram-val">--</div><div class="stat-sub" id="ram-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="ram-bar" style="width:0"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Disk</div><div class="stat-val" id="disk-val">--</div><div class="stat-sub" id="disk-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="disk-bar" style="width:0"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Temp</div><div class="stat-val" id="temp-val">--</div><div class="stat-sub" id="temp-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="temp-bar" style="width:0"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-val" id="uptime-val" style="font-size:20px;">--</div><div class="stat-sub">Since restart</div></div>
+    </div>
+
+    <!-- Fix All Banner -->
+    <div class="fixall-banner" id="fixall-banner" style="display:none;">
+      <div class="fixall-text">
+        <h3 id="fixall-title">Quick fix available</h3>
+        <p id="fixall-desc">Clean junk files, free memory, and clear browser cache in one click.</p>
+      </div>
+      <button class="btn btn-success btn-lg" onclick="fixAll(this)">Fix All Automatically</button>
+    </div>
+
+    <!-- Top Fixes -->
+    <div class="topfix-section">
+      <div class="topfix-header">
+        <h2>What's Slowing Your PC</h2>
+      </div>
+      <div class="section-desc">Problems are sorted by impact. <span style="color:var(--red);">Red = fix immediately</span>, <span style="color:var(--yellow);">Yellow = should fix</span>, <span style="color:var(--green);">Green = nice to fix</span>. Each one shows how much faster your PC will be after fixing it.</div>
+      <div id="issues-list"><div class="loading"><span class="spinner"></span>Scanning your PC for problems...</div></div>
+    </div>
+  </div>
+
+  <!-- ==================== FREE SPACE ==================== -->
+  <div id="tab-cleanup" class="tab-content">
+    <div class="section-title">Free Up Disk Space</div>
+    <div class="section-desc">Your PC stores junk files that pile up over time. Click each button to clean them out.</div>
+
+    <div class="tip">
+      <strong>Tip:</strong> Close your browsers (Chrome, Edge, Firefox) before cleaning browser cache for best results.
+    </div>
+
+    <div id="cleanup-cards"><div class="loading"><span class="spinner"></span>Checking what can be cleaned...</div></div>
+
+    <hr class="divider">
+
+    <div class="section-title">Find Duplicate Files</div>
+    <div class="section-desc">Scan a folder for identical copies of files (over 1 MB). The first file in each group is kept; you can delete the rest.</div>
+    <div class="input-row">
+      <input type="text" class="text-input" id="dup-path" placeholder="Type a folder path, e.g. C:\Users\amaga\Downloads">
+      <button class="btn btn-primary" id="dup-scan-btn" onclick="scanDuplicates()">Scan for Duplicates</button>
+    </div>
+    <div id="dup-results"></div>
+  </div>
+
+  <!-- ==================== RUNNING APPS ==================== -->
+  <div id="tab-processes" class="tab-content">
+    <div class="section-title">Apps Using the Most Memory</div>
+    <div class="section-desc">These apps are using the most RAM right now. If your PC is slow, close apps you're not using.</div>
+
+    <div class="tip">
+      <strong>Which apps should I close?</strong> Close apps you recognize and aren't using (like Chrome, Spotify, Teams). <strong>Don't close</strong> apps you don't recognize — they might be system processes your PC needs.
+    </div>
+
+    <table>
+      <thead><tr><th>App Name</th><th>Memory</th><th>CPU</th><th></th></tr></thead>
+      <tbody id="proc-table"><tr><td colspan="4" class="loading"><span class="spinner"></span>Loading...</td></tr></tbody>
+    </table>
+
+    <hr class="divider">
+
+    <div class="section-title">Memory Leak Detection</div>
+    <div class="section-desc">Some apps slowly eat more memory over time without releasing it. This tool watches for that pattern. Keep the app running for 5+ minutes to see results.</div>
+    <div id="leak-list"><div style="color:var(--muted);text-align:center;padding:16px;">Collecting data... check back in a few minutes.</div></div>
+  </div>
+
+  <!-- ==================== STARTUP APPS ==================== -->
+  <div id="tab-startup" class="tab-content">
+    <div class="section-title">Apps That Start With Windows</div>
+    <div class="section-desc">The more apps that launch at startup, the longer your PC takes to be ready. You should disable ones you don't need.</div>
+
+    <div class="tip">
+      <strong>How to disable a startup app:</strong>
+      <ol>
+        <li>Click the button below to open Task Manager</li>
+        <li>Click the <strong>"Startup"</strong> tab at the top</li>
+        <li>Right-click any app you don't need at startup</li>
+        <li>Click <strong>"Disable"</strong></li>
+      </ol>
+      <strong>Keep enabled:</strong> Antivirus, audio drivers, cloud storage you use. <strong>Disable:</strong> Spotify, Discord, Adobe, Skype, Teams (if you don't need them immediately).
+    </div>
+
+    <button class="btn btn-primary" style="margin-bottom:16px;" onclick="doAction('/api/open-task-manager', this)">Open Task Manager (Startup Tab)</button>
+    <div style="font-size:14px;margin-bottom:10px;"><strong id="startup-count">--</strong> apps start with Windows</div>
+    <div id="startup-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+  </div>
+
+  <!-- ==================== PC HEALTH ==================== -->
+  <div id="tab-health" class="tab-content">
+    <!-- Disk Health -->
+    <div class="section">
+      <div class="section-title">Hard Drive Health</div>
+      <div class="section-desc">Your hard drive has a built-in health monitor (S.M.A.R.T.). If it shows anything other than "Healthy", back up your files immediately.</div>
+      <div id="disk-health-list"><div class="loading"><span class="spinner"></span>Checking drives...</div></div>
+    </div>
+
+    <!-- Thermal -->
+    <div class="section">
+      <div class="section-title">CPU Temperature</div>
+      <div class="section-desc">When your laptop gets too hot, it automatically slows down to avoid damage. This is very common on older laptops and is a major cause of slowness.</div>
+      <div id="thermal-info"><div class="loading"><span class="spinner"></span>Reading sensors...</div></div>
+    </div>
+
+    <!-- Services -->
+    <div class="section">
+      <div class="section-title">Unnecessary Background Services</div>
+      <div class="section-desc">Windows runs small programs in the background that you probably don't need. Stopping them frees up memory and CPU.</div>
+
+      <div id="services-admin-tip"></div>
+      <div id="services-list"><div class="loading"><span class="spinner"></span>Scanning...</div></div>
+    </div>
+
+    <!-- Speed Boost -->
+    <div class="section">
+      <div class="section-title">Speed Boost Settings</div>
+      <div class="section-desc">These settings make your PC feel faster by reducing eye candy and switching to a faster power mode.</div>
+      <div class="grid">
+        <div class="card">
+          <h3>Power Mode</h3>
+          <div id="power-plan" style="font-size:12px;color:var(--muted);margin-bottom:10px;">Loading...</div>
+          <button class="btn btn-primary" onclick="doAction('/api/set-high-performance', this)">Switch to High Performance</button>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;">Uses more battery but removes power-saving slowdowns.</div>
+        </div>
+        <div class="card">
+          <h3>Visual Effects</h3>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Windows shows animations that use CPU. Turning them off makes menus feel instant.</div>
+          <button class="btn btn-primary" onclick="doAction('/api/disable-visual-effects', this)">Turn Off Animations</button>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;">You can undo this later in Windows Settings > Accessibility > Visual Effects.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== NETWORK ==================== -->
+  <div id="tab-network" class="tab-content">
+    <div class="section-title">What's Using Your Internet</div>
+    <div class="section-desc">If your internet feels slow, check which apps are using it below. Background downloads (Windows Update, OneDrive, Dropbox) are the most common culprits.</div>
+
+    <div class="grid" style="margin-bottom:16px;">
+      <div class="card"><h3>Total Sent</h3><div class="big-num" id="net-sent">--</div><div class="stat-sub">Since boot</div></div>
+      <div class="card"><h3>Total Received</h3><div class="big-num" id="net-recv">--</div><div class="stat-sub">Since boot</div></div>
+    </div>
+
+    <div class="section-title" style="font-size:15px;">Apps With Active Network Connections</div>
+    <div class="tip" style="margin-bottom:14px;">
+      <strong>What can I do here?</strong>
+      <ul>
+        <li><strong>If an app is using too much data</strong> — go to the "Running Apps" tab and close it</li>
+        <li><strong>If you see Windows Update downloading</strong> — this is normal, but you can pause it: Settings > Update & Security > Pause Updates</li>
+        <li><strong>If you see OneDrive/Dropbox syncing</strong> — right-click its icon in the system tray (bottom-right) and pause syncing</li>
+        <li><strong>If websites are loading slowly</strong> — click the button below to flush your DNS cache</li>
+      </ul>
+    </div>
+
+    <table>
+      <thead><tr><th>App Name</th><th>Connections</th><th>Data Read</th><th>Data Written</th></tr></thead>
+      <tbody id="net-table"><tr><td colspan="4" class="loading"><span class="spinner"></span>Loading...</td></tr></tbody>
+    </table>
+
+    <div style="margin-top:14px;">
+      <button class="btn btn-outline" onclick="doAction('/api/flush-dns', this)">Fix Slow Websites (Flush DNS)</button>
+      <span style="font-size:12px;color:var(--muted);margin-left:8px;">Clears your network name cache. Often fixes websites that won't load or load slowly.</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== HELPERS ====================
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function colorPct(p) { return p > 85 ? 'var(--red)' : p > 70 ? 'var(--orange)' : p > 50 ? 'var(--yellow)' : 'var(--green)'; }
+function scoreColor(s) { return s >= 80 ? '#22c55e' : s >= 50 ? '#eab308' : '#ef4444'; }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4500); }
+
+let _isAdmin = false;
+
+// ==================== TABS ====================
+document.querySelectorAll('#main-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const name = tab.dataset.tab;
+    document.querySelectorAll('#main-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    onTab(name);
+  });
+});
+function onTab(n) {
+  if (n === 'processes') { loadProcesses(); loadLeaks(); }
+  if (n === 'startup') loadStartup();
+  if (n === 'cleanup') loadCleanup();
+  if (n === 'health') { loadDiskHealth(); loadThermal(); loadServices(); loadPowerPlan(); }
+  if (n === 'network') loadNetwork();
+}
+
+// ==================== DASHBOARD ====================
+async function loadOverview() {
+  try {
+    const d = await (await fetch('/api/system-overview')).json();
+    _isAdmin = d.is_admin;
+    document.getElementById('cpu-val').textContent = d.cpu_percent + '%';
+    document.getElementById('cpu-sub').textContent = `${d.cpu_cores}C / ${d.cpu_threads}T`;
+    document.getElementById('cpu-bar').style.width = d.cpu_percent + '%';
+    document.getElementById('cpu-bar').style.background = colorPct(d.cpu_percent);
+    document.getElementById('ram-val').textContent = d.ram_percent + '%';
+    document.getElementById('ram-sub').textContent = `${d.ram_used_gb}/${d.ram_total_gb} GB`;
+    document.getElementById('ram-bar').style.width = d.ram_percent + '%';
+    document.getElementById('ram-bar').style.background = colorPct(d.ram_percent);
+    document.getElementById('disk-val').textContent = d.disk_percent + '%';
+    document.getElementById('disk-sub').textContent = `${d.disk_free_gb} GB free`;
+    document.getElementById('disk-bar').style.width = d.disk_percent + '%';
+    document.getElementById('disk-bar').style.background = colorPct(d.disk_percent);
+    document.getElementById('uptime-val').textContent = d.uptime;
+    const badge = document.getElementById('admin-badge');
+    const banner = document.getElementById('admin-banner');
+    if (d.is_admin) { badge.textContent = 'Full Access'; badge.className = 'badge badge-admin'; banner.style.display = 'none'; }
+    else { badge.textContent = 'Limited Mode'; badge.className = 'badge badge-limited'; banner.style.display = 'block'; }
+  } catch(e) {}
+}
+
+async function loadThermalDash() {
+  try {
+    const d = await (await fetch('/api/thermal')).json();
+    if (d.temp_c) {
+      document.getElementById('temp-val').textContent = d.temp_c + '\u00B0';
+      const pct = Math.min(100, (d.temp_c / 100) * 100);
+      document.getElementById('temp-bar').style.width = pct + '%';
+      document.getElementById('temp-bar').style.background = d.temp_c > 80 ? 'var(--red)' : d.temp_c > 65 ? 'var(--orange)' : 'var(--green)';
+      document.getElementById('temp-sub').textContent = d.throttled ? 'Throttling!' : 'Normal';
+    } else {
+      document.getElementById('temp-val').textContent = '--';
+      document.getElementById('temp-sub').textContent = d.current_speed_mhz ? `${d.current_speed_mhz} MHz` : 'No sensor';
+    }
+  } catch(e) {}
+}
+
+async function loadDiagnosis() {
+  try {
+    const d = await (await fetch('/api/diagnose')).json();
+    const score = d.health_score;
+    const color = scoreColor(score);
+    document.getElementById('health-score').textContent = score;
+    document.getElementById('health-score').style.color = color;
+    const circle = document.getElementById('health-circle');
+    circle.style.stroke = color;
+    circle.style.strokeDashoffset = 352 - (352 * score / 100);
+
+    // Title/desc
+    const ht = document.getElementById('health-title');
+    const hd = document.getElementById('health-desc');
+    if (score >= 90) { ht.textContent = 'Your PC is running great!'; hd.textContent = 'No major problems found. Keep it up!'; }
+    else if (score >= 70) { ht.textContent = 'Your PC is okay, but can be faster.'; hd.textContent = `We found ${d.issues.length} thing${d.issues.length > 1 ? 's' : ''} slowing it down. Fix them below.`; }
+    else if (score >= 50) { ht.textContent = 'Your PC has several problems.'; hd.textContent = `${d.issues.length} issues found. Fixing the top ones will make a noticeable difference.`; }
+    else { ht.textContent = 'Your PC has serious performance problems.'; hd.textContent = `${d.issues.length} issues found. Start with the red ones — they'll make the biggest difference.`; }
+
+    // Fix-all banner
+    const autoFix = d.issues.filter(i => i.action && !i.needs_admin);
+    const banner = document.getElementById('fixall-banner');
+    if (autoFix.length >= 2) {
+      banner.style.display = 'flex';
+      document.getElementById('fixall-title').textContent = `${autoFix.length} problems can be fixed with one click`;
+      document.getElementById('fixall-desc').textContent = 'This will clean junk files, free memory, and clear caches automatically.';
+    } else { banner.style.display = 'none'; }
+
+    // Issue cards
+    const el = document.getElementById('issues-list');
+    if (d.issues.length === 0) {
+      el.innerHTML = '<div class="no-issues">All clear! No problems found. Your PC is running smoothly.</div>';
+    } else {
+      el.innerHTML = d.issues.map((issue, idx) => {
+        let actionBtn = '';
+        if (issue.action) {
+          actionBtn = `<button class="btn ${issue.severity === 'high' ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="doActionRefresh('${issue.action}', this)">${esc(issue.action_label)}</button>`;
+        } else if (issue.tab) {
+          actionBtn = `<button class="btn btn-primary btn-sm" onclick="goTab('${issue.tab}')">${esc(issue.action_label)}</button>`;
+        }
+        const adminNote = issue.needs_admin && !_isAdmin ? '<div style="font-size:11px;color:var(--yellow);margin-top:6px;">Needs admin access. See the yellow banner at the top for instructions.</div>' : '';
+        return `<div class="fix-card ${issue.severity}">
+          <div class="fix-top">
+            <div class="fix-main">
+              <div class="fix-title-row">
+                <span class="fix-title">${esc(issue.title)}</span>
+                <span class="fix-sev ${issue.severity}">${issue.severity === 'high' ? 'Fix Now' : issue.severity === 'medium' ? 'Should Fix' : 'Optional'}</span>
+              </div>
+              <div class="fix-desc">${esc(issue.description)}</div>
+              <div class="fix-how"><strong>How to fix:</strong> ${esc(issue.how)}${adminNote}</div>
+              <div class="fix-meta">
+                <span class="badge-impact">Expected improvement: ${esc(issue.impact)}</span>
+                ${issue.effort ? `<span class="badge-effort">Time: ${esc(issue.effort)}</span>` : ''}
+              </div>
+            </div>
+            <div class="fix-actions">${actionBtn}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    fetch('/api/snapshot', {method:'POST'});
+  } catch(e) { document.getElementById('issues-list').innerHTML = '<div class="loading">Could not scan. Is the app running?</div>'; }
+}
+
+function goTab(name) { document.querySelector(`[data-tab="${name}"]`).click(); }
+
+async function fixAll(btn) {
+  btn.disabled = true; btn.textContent = 'Fixing everything...';
+  for (const url of ['/api/clean-temp', '/api/clean-browser-cache', '/api/clear-standby-memory']) {
+    try { await fetch(url, {method:'POST'}); } catch(e) {}
+  }
+  showToast('Done! Cleaned junk files, browser cache, and freed memory.');
+  btn.textContent = 'Done!';
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Fix All Automatically'; refreshAll(); }, 2000);
+}
+
+// ==================== CLEANUP ====================
+async function loadCleanup() {
+  const el = document.getElementById('cleanup-cards');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Checking...</div>';
+  let ts = 0, bc = [], wu = 0;
+  try {
+    const [t, b, w] = await Promise.all([
+      fetch('/api/temp-files-info').then(r=>r.json()).catch(()=>({size_mb:0})),
+      fetch('/api/browser-cache-info').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/wu-cache-info').then(r=>r.json()).catch(()=>({size_mb:0})),
+    ]);
+    ts = t.size_mb || 0; bc = b; wu = w.size_mb || 0;
+  } catch(e) {}
+  const bt = bc.reduce((s,b) => s + b.size_mb, 0);
+  const bd = bc.map(b => `${b.name}: ${b.size_mb} MB`).join(' / ') || 'None found';
+  el.innerHTML = `<div class="grid">
+    <div class="card">
+      <h3>Temporary Files</h3>
+      <div class="big-num" style="color:${ts > 500 ? 'var(--orange)' : 'var(--text)'};">${ts} MB</div>
+      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">Junk files left behind by programs. Completely safe to delete.</div>
+      <button class="btn ${ts > 100 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-temp', this)">Delete Junk Files</button>
+    </div>
+    <div class="card">
+      <h3>Browser Cache</h3>
+      <div class="big-num" style="color:${bt > 500 ? 'var(--orange)' : 'var(--text)'};">${Math.round(bt)} MB</div>
+      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">${bd}. Passwords and bookmarks are NOT affected.</div>
+      <button class="btn ${bt > 200 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-browser-cache', this)">Clean Browser Cache</button>
+    </div>
+    <div class="card">
+      <h3>Windows Update Cache</h3>
+      <div class="big-num" style="color:${wu > 500 ? 'var(--orange)' : 'var(--text)'};">${wu} MB</div>
+      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">Old update files. ${_isAdmin ? 'Safe to clean.' : 'Requires admin access.'}</div>
+      <button class="btn ${wu > 200 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-wu-cache', this)">Clean Update Cache</button>
+      ${!_isAdmin ? '<div style="font-size:11px;color:var(--yellow);margin-top:6px;">Needs admin. See banner at top.</div>' : ''}
+    </div>
+  </div>
+  <button class="btn btn-outline" onclick="doAction('/api/run-disk-cleanup', this)">Open Windows Disk Cleanup</button>
+  <span style="font-size:12px;color:var(--muted);margin-left:8px;">The built-in Windows tool for even deeper cleaning.</span>`;
+}
+
+// ==================== PROCESSES ====================
+async function loadProcesses() {
+  try {
+    const procs = await (await fetch('/api/processes')).json();
+    document.getElementById('proc-table').innerHTML = procs.map(p => `<tr>
+      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+      <td>${p.memory_mb} MB</td>
+      <td>${p.cpu_percent.toFixed(1)}%</td>
+      <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
+    </tr>`).join('');
+  } catch(e) { document.getElementById('proc-table').innerHTML = '<tr><td colspan="4">Failed to load.</td></tr>'; }
+}
+async function loadLeaks() {
+  try {
+    const leaks = await (await fetch('/api/memory-leaks')).json();
+    const el = document.getElementById('leak-list');
+    if (leaks.length === 0) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:16px;">No memory leaks detected yet. Keep the app running to monitor.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>App</th><th>Started At</th><th>Now At</th><th>Growth</th></tr></thead><tbody>` +
+      leaks.map(l => `<tr><td><strong>${esc(l.name)}</strong></td><td>${l.start_mb} MB</td><td>${l.current_mb} MB</td><td style="color:var(--red);font-weight:600;">+${l.growth_mb} MB</td></tr>`).join('') +
+      '</tbody></table><div style="font-size:12px;color:var(--muted);margin-top:6px;">Fix: close and reopen the app. That usually stops the leak.</div>';
+  } catch(e) {}
+}
+async function killProc(pid, name, btn) {
+  if (!confirm(`Close "${name}"? Unsaved work in this app will be lost.`)) return;
+  btn.disabled = true;
+  try {
+    const d = await (await fetch('/api/kill-process', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid})})).json();
+    showToast(d.message || d.error);
+    if (d.success) setTimeout(loadProcesses, 500);
+  } catch(e) { showToast('Could not close that app.'); }
+  btn.disabled = false;
+}
+
+// ==================== STARTUP ====================
+async function loadStartup() {
+  try {
+    const progs = await (await fetch('/api/startup-programs')).json();
+    document.getElementById('startup-count').textContent = progs.length;
+    const el = document.getElementById('startup-list');
+    if (!progs.length) { el.innerHTML = '<div style="color:var(--muted);padding:16px;">No startup programs found.</div>'; return; }
+    el.innerHTML = progs.map(p => `<div class="startup-item">
+      <div style="flex:1;"><div class="startup-name">${esc(p.name)}</div><div class="startup-cmd">${esc(p.command)}</div></div>
+      <span class="startup-source">${esc(p.source)}</span>
+    </div>`).join('');
+  } catch(e) { document.getElementById('startup-list').innerHTML = '<div class="loading">Failed.</div>'; }
+}
+
+// ==================== HEALTH ====================
+async function loadDiskHealth() {
+  try {
+    const disks = await (await fetch('/api/disk-health')).json();
+    const el = document.getElementById('disk-health-list');
+    if (!disks.length) { el.innerHTML = '<div style="color:var(--muted);padding:16px;">Could not read drive info. Try running as Admin.</div>'; return; }
+    el.innerHTML = disks.map(d => {
+      const ok = d.status.toLowerCase() === 'ok';
+      return `<div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-weight:700;">${esc(d.model)}</div><div style="font-size:12px;color:var(--muted);">${d.size_gb} GB &middot; ${esc(d.media_type||'Unknown')}</div></div>
+          <div style="font-weight:700;color:${ok?'var(--green)':'var(--red)'};">${ok?'Healthy':esc(d.status)}</div>
+        </div>
+        ${d.smart_warning ? '<div style="color:var(--red);font-weight:600;margin-top:8px;">Your drive may fail soon. Back up ALL important files NOW to an external drive or cloud storage.</div>' : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('disk-health-list').innerHTML = '<div class="loading">Failed.</div>'; }
+}
+
+async function loadThermal() {
+  try {
+    const d = await (await fetch('/api/thermal')).json();
+    const el = document.getElementById('thermal-info');
+    let h = '<div class="card">';
+    if (d.temp_c) {
+      const hot = d.temp_c > 80, warm = d.temp_c > 65;
+      h += `<div style="font-size:32px;font-weight:800;color:${hot?'var(--red)':warm?'var(--orange)':'var(--green)'};">${d.temp_c}\u00B0C</div>`;
+      h += `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${d.throttled ? '<span style="color:var(--red);font-weight:700;">Your CPU is throttling! It\'s running slower because it\'s too hot.</span>' : hot ? 'Getting dangerously hot.' : warm ? 'Warm, but okay.' : 'Normal temperature.'}</div>`;
+    } else {
+      h += '<div style="font-size:15px;font-weight:600;">Temperature sensor not available</div>';
+      h += '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Some PCs don\'t report temperature to Windows. This is normal.</div>';
+    }
+    if (d.max_speed_mhz) {
+      const ratio = d.current_speed_mhz / d.max_speed_mhz;
+      h += `<div style="margin-top:10px;font-size:13px;">Speed: <strong style="color:${ratio<0.7?'var(--red)':'var(--green)'};">${d.current_speed_mhz} MHz</strong> / ${d.max_speed_mhz} MHz max</div>`;
+      if (ratio < 0.7) h += '<div style="color:var(--orange);font-size:12px;margin-top:4px;">CPU is running much slower than it should. Switch to High Performance power mode below.</div>';
+    }
+    h += '</div>';
+    h += `<div class="tip" style="margin-top:12px;"><strong>How to fix overheating:</strong><ol>
+      <li>Clean dust from laptop vents with compressed air (costs ~$5 at any store)</li>
+      <li>Use a laptop cooling pad ($15-25)</li>
+      <li>Never use on soft surfaces (bed, pillow) — they block airflow</li>
+      <li>For 3+ year old laptops: get thermal paste replaced at a repair shop (~$30-50)</li>
+    </ol></div>`;
+    el.innerHTML = h;
+  } catch(e) { document.getElementById('thermal-info').innerHTML = '<div class="loading">Failed.</div>'; }
+}
+
+async function loadServices() {
+  try {
+    const services = await (await fetch('/api/bloat-services')).json();
+    const tip = document.getElementById('services-admin-tip');
+    if (!_isAdmin) {
+      tip.innerHTML = `<div class="admin-banner" style="margin-bottom:14px;">
+        <strong>Admin access needed to stop services.</strong> Here's how:
+        <ol>
+          <li>Close this app (press Ctrl+C in the terminal)</li>
+          <li>Right-click <code>start-as-admin.bat</code> and choose "Run as administrator"</li>
+          <li>Come back to this tab and click "Stop"</li>
+        </ol>
+        Stopping services is safe — they restart automatically next time you reboot.
+      </div>`;
+    } else { tip.innerHTML = ''; }
+    const el = document.getElementById('services-list');
+    if (!services.length) { el.innerHTML = '<div class="no-issues">No unnecessary services found. Your system is lean!</div>'; return; }
+    el.innerHTML = `<div style="margin-bottom:10px;font-size:14px;"><strong>${services.length}</strong> unnecessary services running</div>` +
+      `<table><thead><tr><th>Service</th><th>Why You Don't Need It</th><th></th></tr></thead><tbody>` +
+      services.map(s => `<tr>
+        <td><strong>${esc(s.display_name)}</strong></td>
+        <td style="font-size:12px;color:var(--muted);">${esc(s.description)}</td>
+        <td><button class="btn btn-warn btn-sm" ${_isAdmin?'':`disabled title="Run as admin first"`} onclick="stopSvc('${esc(s.name)}',this)">${_isAdmin ? 'Stop' : 'Needs Admin'}</button></td>
+      </tr>`).join('') + '</tbody></table>';
+  } catch(e) { document.getElementById('services-list').innerHTML = '<div class="loading">Failed.</div>'; }
+}
+async function stopSvc(name, btn) {
+  if (!confirm('Stop this service? It will restart on next reboot, so this is safe.')) return;
+  btn.disabled = true;
+  try {
+    const d = await (await fetch('/api/stop-service',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})).json();
+    showToast(d.message || d.error);
+    if (d.success) setTimeout(loadServices, 500);
+  } catch(e) { showToast('Could not stop service.'); }
+  btn.disabled = false;
+}
+async function loadPowerPlan() {
+  try { const d = await (await fetch('/api/power-plan')).json(); document.getElementById('power-plan').textContent = d.plan || d.error || 'Unknown'; } catch(e) {}
+}
+
+// ==================== NETWORK ====================
+async function loadNetwork() {
+  try {
+    const d = await (await fetch('/api/network-usage')).json();
+    document.getElementById('net-sent').textContent = d.system.bytes_sent_mb + ' MB';
+    document.getElementById('net-recv').textContent = d.system.bytes_recv_mb + ' MB';
+    const tb = document.getElementById('net-table');
+    if (!d.processes.length) { tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;">No active network connections right now.</td></tr>'; return; }
+    tb.innerHTML = d.processes.map(p => `<tr>
+      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+      <td>${p.connections}</td><td>${p.read_mb} MB</td><td>${p.write_mb} MB</td>
+    </tr>`).join('');
+  } catch(e) { document.getElementById('net-table').innerHTML = '<tr><td colspan="4">Failed.</td></tr>'; }
+}
+
+// ==================== DUPLICATES ====================
+async function scanDuplicates() {
+  const path = document.getElementById('dup-path').value.trim() || undefined;
+  const btn = document.getElementById('dup-scan-btn');
+  const el = document.getElementById('dup-results');
+  btn.disabled = true; btn.textContent = 'Scanning...';
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Looking for duplicates... may take a minute for large folders.</div>';
+  try {
+    const d = await (await fetch('/api/find-duplicates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})).json();
+    if (d.error) { el.innerHTML = `<div style="color:var(--red);padding:14px;">${esc(d.error)}</div>`; }
+    else if (!d.duplicates.length) { el.innerHTML = `<div class="no-issues">No duplicates found in ${esc(d.scanned_path)}.</div>`; }
+    else {
+      window._dupData = d;
+      let html = `<div style="margin-bottom:14px;font-size:14px;">Found <strong>${d.duplicates.length}</strong> groups wasting <strong style="color:var(--orange);">${d.total_waste_mb} MB</strong>.
+        <button class="btn btn-danger btn-sm" style="margin-left:10px;" onclick="deleteAllDups()">Delete All Copies (Keep Originals)</button></div>`;
+      html += '<div class="tip" style="margin-bottom:14px;"><strong>How it works:</strong> The first file is the "original" (marked green). Click Delete on copies you don\'t need.</div>';
+      html += d.duplicates.map((g,gi) => `<div class="dup-group" id="dup-group-${gi}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div class="dup-waste">${g.waste_mb} MB wasted (${g.files.length} copies)</div>
+          <button class="btn btn-warn btn-sm" onclick="delGroupCopies(${gi})">Delete Copies</button>
+        </div>
+        ${g.files.map((f,fi) => `<div class="dup-file" id="dup-${gi}-${fi}">
+          <span style="flex:1;">${fi===0?'<strong style="color:var(--green);">[KEEP]</strong> ':''}${esc(f.path)} (${f.size_mb} MB)</span>
+          ${fi===0?'<span style="font-size:10px;color:var(--green);">Original</span>':`<button class="btn btn-danger btn-sm" onclick="delDupFile(${gi},${fi},this)">Delete</button>`}
+        </div>`).join('')}
+      </div>`).join('');
+      el.innerHTML = html;
+    }
+  } catch(e) { el.innerHTML = '<div style="color:var(--red);padding:14px;">Scan failed. Check the folder path.</div>'; }
+  btn.disabled = false; btn.textContent = 'Scan for Duplicates';
+}
+async function delDupFile(gi,fi,btn) {
+  const f = window._dupData.duplicates[gi].files[fi];
+  if (!confirm(`Delete?\n${f.path}`)) return;
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const d = await (await fetch('/api/delete-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:f.path})})).json();
+    if (d.success) { document.getElementById(`dup-${gi}-${fi}`).innerHTML = `<span style="color:var(--green);font-size:12px;">Deleted (freed ${d.freed_mb} MB)</span>`; showToast(d.message); }
+    else { showToast(d.error); btn.disabled = false; btn.textContent = 'Delete'; }
+  } catch(e) { showToast('Delete failed.'); btn.disabled = false; btn.textContent = 'Delete'; }
+}
+async function delGroupCopies(gi) {
+  const g = window._dupData.duplicates[gi]; const copies = g.files.slice(1);
+  if (!confirm(`Delete ${copies.length} copies?\nKeeping: ${g.files[0].path}\nFrees ${g.waste_mb} MB`)) return;
+  try {
+    const d = await (await fetch('/api/delete-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:copies.map(f=>f.path)})})).json();
+    showToast(d.message);
+    if (d.deleted>0) { for (let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:12px;">Deleted</span>'; } }
+  } catch(e) { showToast('Failed.'); }
+}
+async function deleteAllDups() {
+  const groups = window._dupData.duplicates;
+  let total = 0, paths = [];
+  groups.forEach(g => { const c=g.files.slice(1); total+=c.length; paths.push(...c.map(f=>f.path)); });
+  if (!confirm(`Delete ${total} duplicate files across ${groups.length} groups?\nKeeps the first file in each group.\nFrees ~${window._dupData.total_waste_mb} MB`)) return;
+  try {
+    const d = await (await fetch('/api/delete-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths})})).json();
+    showToast(d.message);
+    if (d.deleted>0) { groups.forEach((g,gi) => { for(let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:12px;">Deleted</span>'; } }); }
+  } catch(e) { showToast('Failed.'); }
+}
+
+// ==================== COMMON ====================
+async function doAction(url, btn) {
+  const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Working...';
+  try { const d = await (await fetch(url,{method:'POST'})).json(); showToast(d.message || d.error || 'Done!'); }
+  catch(e) { showToast('Failed: ' + e.message); }
+  btn.innerHTML = orig; btn.disabled = false;
+}
+async function doActionRefresh(url, btn) { await doAction(url, btn); setTimeout(refreshAll, 1500); }
+
+function refreshAll() { loadOverview(); loadThermalDash(); loadDiagnosis(); }
+refreshAll();
+setInterval(() => { loadOverview(); loadThermalDash(); }, 30000);
+</script>
+</body>
+</html>
