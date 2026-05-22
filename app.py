@@ -812,26 +812,81 @@ def thermal():
 
 def _detect_memory_leaks():
     """Analyze tracked memory data for processes with steadily growing RSS."""
+
+    # Windows system processes that legitimately grow — not real leaks
+    SYSTEM_PROCESSES = {
+        "memcompression",      # Windows memory compression — grows under RAM pressure, by design
+        "system",              # Windows kernel
+        "registry",            # Windows Registry cache
+        "smss.exe",            # Session Manager
+        "csrss.exe",           # Client Server Runtime
+        "wininit.exe",         # Windows Init
+        "winlogon.exe",        # Windows Logon
+        "services.exe",        # Service Control Manager
+        "lsass.exe",           # Local Security Authority
+        "svchost.exe",         # Service Host — grows with services, not a leak
+        "dwm.exe",             # Desktop Window Manager — grows with open windows
+        "explorer.exe",        # Windows Explorer — grows with usage, not a leak
+        "antimalware service executable", # Windows Defender
+        "msmpeng.exe",         # Windows Defender engine
+        "searchindexer.exe",   # Windows Search — grows while indexing
+        "ntoskrnl.exe",        # Windows kernel
+        "mrt.exe",             # Malware Removal Tool
+    }
+
+    # Fix advice tailored per known app
+    FIX_ADVICE = {
+        "chrome.exe":        "Chrome is known to grow over time. Close tabs you're not using, or restart Chrome to reset memory.",
+        "msedge.exe":        "Edge is using more memory over time. Close unused tabs or restart Edge.",
+        "firefox.exe":       "Firefox memory grows with open tabs. Restart Firefox to reset it.",
+        "code.exe":          "VS Code grows with open projects/extensions. Restart it to free up memory.",
+        "teams.exe":         "Microsoft Teams is known for memory leaks. Quit and relaunch it from the Start menu.",
+        "outlook.exe":       "Outlook grows over long sessions. Close and reopen it to reset memory.",
+        "slack.exe":         "Slack's Electron framework tends to leak memory. Restart the app.",
+        "discord.exe":       "Discord grows over time. Quit from the system tray and relaunch.",
+        "spotify.exe":       "Spotify leaks memory over long sessions. Close and reopen it.",
+        "onedrive.exe":      "OneDrive is growing in memory. Right-click its tray icon and choose Quit, then relaunch.",
+        "dropbox.exe":       "Dropbox is growing in memory. Quit from the system tray and relaunch.",
+        "zoom.exe":          "Zoom grows during/after calls. Restart the app after your meetings.",
+        "acrobat.exe":       "Adobe Acrobat grows with open PDFs. Close documents you're not reading.",
+        "photoshop.exe":     "Photoshop holds history and caches in memory. Use Edit > Purge > All to free some.",
+        "node.exe":          "A Node.js app is growing in memory. Check the app's logs for errors and restart it.",
+        "python.exe":        "A Python script is growing in memory. Restart the script or check for infinite loops.",
+        "java.exe":          "A Java app is growing in memory. Restart the application.",
+        "javaw.exe":         "A Java app is growing in memory. Restart the application.",
+    }
+
+    DEFAULT_FIX = "Close and reopen this app to reset its memory. If it keeps growing, the app may have a bug — check for updates."
+
     leaks = []
     with _mem_tracker_lock:
         for pid, data in _mem_tracker.items():
+            name = data["name"]
+            # Skip known system processes
+            if name.lower() in SYSTEM_PROCESSES or name.lower().replace(".exe", "") in SYSTEM_PROCESSES:
+                continue
+
             samples = data["samples"]
             if len(samples) < 5:
                 continue
-            # Check if memory is consistently increasing
+
             rss_values = [s[1] for s in samples]
             increases = sum(1 for i in range(1, len(rss_values)) if rss_values[i] > rss_values[i - 1])
             total_growth = rss_values[-1] - rss_values[0]
+
             # Flag if >70% of samples show increase AND grew by >50MB
             if increases / (len(rss_values) - 1) > 0.7 and total_growth > 50:
+                fix = FIX_ADVICE.get(name.lower(), DEFAULT_FIX)
                 leaks.append({
                     "pid": pid,
-                    "name": data["name"],
+                    "name": name,
                     "start_mb": rss_values[0],
                     "current_mb": rss_values[-1],
                     "growth_mb": round(total_growth, 1),
                     "samples": len(samples),
+                    "fix": fix,
                 })
+
     leaks.sort(key=lambda x: x["growth_mb"], reverse=True)
     return leaks[:10]
 

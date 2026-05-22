@@ -585,10 +585,28 @@ async function loadLeaks() {
   try {
     const leaks = await (await fetch('/api/memory-leaks')).json();
     const el = document.getElementById('leak-list');
-    if (leaks.length === 0) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:16px;">No memory leaks detected yet. Keep the app running to monitor.</div>'; return; }
-    el.innerHTML = `<table><thead><tr><th>App</th><th>Started At</th><th>Now At</th><th>Growth</th></tr></thead><tbody>` +
-      leaks.map(l => `<tr><td><strong>${esc(l.name)}</strong></td><td>${l.start_mb} MB</td><td>${l.current_mb} MB</td><td style="color:var(--red);font-weight:600;">+${l.growth_mb} MB</td></tr>`).join('') +
-      '</tbody></table><div style="font-size:12px;color:var(--muted);margin-top:6px;">Fix: close and reopen the app. That usually stops the leak.</div>';
+    if (leaks.length === 0) {
+      el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:16px;">No memory leaks detected. Keep the app running to keep monitoring.</div>';
+      return;
+    }
+    el.innerHTML = leaks.map(l => `
+      <div style="background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:10px;padding:16px 18px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div>
+            <strong style="font-size:15px;">${esc(l.name)}</strong>
+            <span style="font-size:11px;color:var(--muted);margin-left:8px;">PID ${l.pid}</span>
+          </div>
+          <span style="color:var(--red);font-weight:700;font-size:15px;">+${l.growth_mb} MB growth</span>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+          Started at <strong>${l.start_mb} MB</strong> &rarr; now at <strong style="color:var(--orange);">${l.current_mb} MB</strong>
+          &nbsp;&middot;&nbsp; Measured over ${l.samples} samples
+        </div>
+        <div style="background:#ffffff06;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.6;">
+          <strong style="color:var(--accent);">How to fix:</strong> ${esc(l.fix)}
+        </div>
+      </div>
+    `).join('');
   } catch(e) {}
 }
 async function killProc(pid, name, btn) {
