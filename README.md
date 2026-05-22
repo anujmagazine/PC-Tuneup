@@ -15,6 +15,13 @@ Built as a lightweight alternative to bloated tools like AVG TuneUp, CCleaner, e
 
 PC TuneUp scans your Windows PC, identifies what's slowing it down, tells you exactly how to fix each problem in plain English, and lets you fix most issues with a single click — all from a clean web dashboard running on `localhost`.
 
+**Key highlights:**
+- 🩺 **Health score** — a 0–100 score calculated across all detected issues, with a prioritised fix list sorted by impact
+- ⚡ **Fix All Automatically** — one button applies every safe fix in sequence
+- 📈 **Per-issue performance estimates** — every issue shows how much improvement to expect (e.g. "Free ~2.1 GB", "20–40% faster")
+- 🧠 **Smart memory leak detection** — monitors RAM growth every 60 seconds, skips Windows system processes (MemCompression, svchost, dwm, etc.), and gives per-app tailored advice (Chrome, Teams, Slack, and more)
+- 🔒 **100% local** — nothing is sent anywhere, ever
+
 ### All 28 Problems It Detects & Fixes
 
 #### Storage & Disk Issues
@@ -27,7 +34,7 @@ PC TuneUp scans your Windows PC, identifies what's slowing it down, tells you ex
 | 4 | **Windows Update cache** | Finds old update files in `SoftwareDistribution\Download` | One-click cleanup (admin) |
 | 5 | **Duplicate files** | Scans any folder for identical files using MD5 hashing | Delete individual copies or all at once |
 | 6 | **Failing hard drive (S.M.A.R.T.)** | Reads drive health sensors, predicts failure before it happens | Alerts you to back up immediately |
-| 7 | **HDD vs SSD detection** | Identifies drive media type | Shows in Disk Health tab |
+| 7 | **HDD vs SSD detection** | Identifies drive media type | Shows in PC Health tab |
 
 #### CPU & Performance Issues
 
@@ -46,7 +53,7 @@ PC TuneUp scans your Windows PC, identifies what's slowing it down, tells you ex
 |---|---|---|---|
 | 14 | **High RAM usage** | Alerts when RAM exceeds 70% or 85% | One-click memory free + identifies heavy apps |
 | 15 | **Memory-hungry processes** | Finds apps using 500+ MB of RAM each | Lists top 30 processes with "End" button |
-| 16 | **Memory leaks** | Background monitor tracks process RAM every 60 seconds, flags apps with steadily growing usage | Shows growth rate, advises restarting the app |
+| 16 | **Memory leaks** | Background monitor tracks process RAM every 60 seconds, flags apps with steadily growing usage; excludes Windows system processes; gives per-app tailored fix advice | Shows growth rate, advises app-specific fix |
 | 17 | **Excessive paging/swap** | Detects when Windows is using the slow hard drive as overflow RAM (>50% swap) | One-click memory free + app cleanup guidance |
 | 18 | **Standby memory buildup** | Cached memory that isn't released back to apps that need it | One-click working set trim for all processes |
 
@@ -92,9 +99,9 @@ The app has 6 tabs:
 
 | Tab | Purpose |
 |---|---|
-| **Fix Problems** | Dashboard with health score, system stats, and all detected issues with fix buttons |
+| **Fix Problems** | Dashboard with health score, system stats, all detected issues with fix buttons, and "Fix All Automatically" |
 | **Free Space** | Shows temp files, browser cache, update cache sizes with cleanup buttons + duplicate file finder |
-| **Running Apps** | Top processes by memory usage with "End" buttons + memory leak detection |
+| **Running Apps** | Top processes by memory usage with "End" buttons + memory leak detection with per-app advice |
 | **Startup Apps** | Lists all startup programs with instructions to disable them |
 | **PC Health** | Disk S.M.A.R.T. status, CPU temperature, background services, speed boost settings |
 | **Network** | Bandwidth monitor showing which apps are using the internet |
@@ -106,14 +113,23 @@ The app has 6 tabs:
 ### Prerequisites
 
 - **Windows 10 or 11**
-- **Python 3.8+** installed ([Download Python](https://www.python.org/downloads/))
-  - During installation, check **"Add Python to PATH"**
+- **Python 3.8+** installed from **[python.org](https://www.python.org/downloads/)** — see the warning below
+
+> ⚠️ **Important — install Python correctly or admin mode will not work:**
+>
+> 1. Download Python from **python.org** (not the Microsoft Store)
+> 2. Run the installer and tick **both** of these options:
+>    - ✅ **Add Python to PATH**
+>    - ✅ **Install for all users**
+> 3. Do **not** use the "Python" app that appears in the Microsoft Store or Windows Settings → Apps. That version creates shortcut aliases that break in elevated (admin) sessions.
+>
+> If you already have Python installed and admin mode doesn't work, see the [Python not found when running as admin](#python-not-found-when-running-as-admin) troubleshooting entry below.
 
 ### Step 1: Download the Code
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pc-tuneup.git
-cd pc-tuneup
+git clone https://github.com/anujmagazine/PC-Tuneup.git
+cd PC-Tuneup
 ```
 
 Or download as ZIP from GitHub and extract it.
@@ -123,7 +139,7 @@ Or download as ZIP from GitHub and extract it.
 Open **Command Prompt** and navigate to the project folder:
 
 ```bash
-cd path\to\pc-tuneup
+cd path\to\PC-Tuneup
 python -m pip install -r requirements.txt
 ```
 
@@ -170,7 +186,7 @@ Press `Ctrl+C` in the terminal window.
 1. Download or clone this repo
 2. Double-click **`start.bat`** (or right-click **`start-as-admin.bat`** → Run as administrator)
 3. The browser opens automatically to `http://localhost:5555`
-4. Click **"Fix All Automatically"** on the dashboard
+4. Click **"Fix All Automatically"** on the Fix Problems tab
 
 That's it.
 
@@ -226,7 +242,7 @@ All endpoints are local-only (`127.0.0.1`).
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/system-overview` | CPU, RAM, disk usage, uptime |
-| `GET` | `/api/diagnose` | Full diagnosis with issues, severity, fix instructions |
+| `GET` | `/api/diagnose` | Full diagnosis with issues, severity, fix instructions, impact estimate, effort, and admin requirement |
 | `GET` | `/api/processes` | Top 30 processes by memory |
 | `POST` | `/api/kill-process` | Terminate a process by PID |
 | `POST` | `/api/clean-temp` | Delete temporary files |
@@ -242,7 +258,7 @@ All endpoints are local-only (`127.0.0.1`).
 | `POST` | `/api/disable-visual-effects` | Set visual effects to Best Performance |
 | `GET` | `/api/disk-health` | S.M.A.R.T. disk health status |
 | `GET` | `/api/thermal` | CPU temperature and throttle status |
-| `GET` | `/api/memory-leaks` | Detect processes with growing memory |
+| `GET` | `/api/memory-leaks` | Detect processes with growing memory (excludes system processes) |
 | `GET` | `/api/bloat-services` | List non-essential running services |
 | `POST` | `/api/stop-service` | Stop a background service (admin) |
 | `GET` | `/api/network-usage` | Per-process network activity |
@@ -274,7 +290,7 @@ All endpoints are local-only (`127.0.0.1`).
 ### `python` is not recognized
 
 Python isn't in your PATH. Either:
-- Reinstall Python and check **"Add Python to PATH"** during setup
+- Reinstall Python from python.org and check **"Add Python to PATH"** during setup
 - Use `py` instead of `python` in all commands
 
 ### `pip` is not recognized
@@ -295,9 +311,32 @@ py --version
 
 Then update `requirements.txt` to use the pywin32 version available for your Python version.
 
+### Python not found when running as admin
+
+**Symptom:** `start-as-admin.bat` opens a window that immediately closes, or shows "Python not found" even though Python is installed.
+
+**Cause:** Python was installed via the Microsoft Store. The Store version creates shortcut aliases that only work for the current user — they are invisible to elevated (admin) sessions.
+
+**Fix:**
+1. Open **Settings → Apps** and uninstall the **"Python"** or **"Python 3.x"** app listed under Microsoft Store apps
+2. Download the real installer from **[python.org](https://www.python.org/downloads/)**
+3. Run the installer and tick **both**:
+   - ✅ Add Python to PATH
+   - ✅ Install for all users
+4. Open a new Command Prompt and run `py --version` to confirm it works
+5. Right-click `start-as-admin.bat` → **Run as administrator**
+
 ### Port 5555 is already in use
 
 Another app is using port 5555. Either close that app, or edit `app.py` and change the `port = 5555` line to another port (e.g., `port = 8080`).
+
+### Browser shows "localhost refused to connect"
+
+The app is not running. You must start it first:
+1. Open Command Prompt in the project folder
+2. Run `py app.py` (or right-click `start-as-admin.bat` → Run as administrator)
+3. Wait for the message `Running on http://127.0.0.1:5555`
+4. Then open `http://localhost:5555` in your browser
 
 ### Some features say "Needs Admin"
 
@@ -320,7 +359,6 @@ Contributions are welcome! Some ideas:
 - [ ] Add scheduled scans
 - [ ] Add system restore point creation
 - [ ] Add driver update checking
-- [ ] Add dark/light theme toggle
 - [ ] Add export health report as PDF
 - [ ] Add tray icon for background monitoring
 
