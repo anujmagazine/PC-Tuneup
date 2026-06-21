@@ -583,51 +583,77 @@ async function loadCleanup() {
 async function loadCpuHogs() {
   const el = document.getElementById('cpu-hog-list');
   try {
-    const procs = await (await fetch('/api/cpu-hogs')).json();
-    const active = procs.filter(p => p.cpu_percent > 0.5);
-    if (!active.length) {
-      el.innerHTML = '<div style="color:var(--green);text-align:center;padding:16px;font-size:14px;">No app is using significant CPU right now. Your fan should be quiet — if it\'s still spinning, give it 10 seconds and click Scan Again.</div>';
-      return;
-    }
-    const top = active[0];
-    const isHigh = top.cpu_percent > 20;
-    const isMed = top.cpu_percent > 10;
-    const topColor = isHigh ? 'var(--red)' : isMed ? 'var(--orange)' : 'var(--yellow)';
-    const label = isHigh ? 'Main culprit' : isMed ? 'High usage' : 'Elevated usage';
+    const data = await (await fetch('/api/cpu-hogs')).json();
+    const sysCpu = data.system_cpu;
+    const procs = data.processes || [];
 
-    let html = `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${topColor};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <strong style="font-size:17px;">${esc(top.name)}</strong>
-          <span style="font-size:11px;color:var(--muted);">PID ${top.pid}</span>
-          <span style="font-size:11px;background:${topColor}22;color:${topColor};padding:2px 8px;border-radius:4px;font-weight:700;">${label}</span>
-        </div>
-        <span style="color:${topColor};font-weight:800;font-size:22px;">${top.cpu_percent}% CPU</span>
+    // Header: live system CPU
+    const sysColor = sysCpu > 80 ? 'var(--red)' : sysCpu > 50 ? 'var(--orange)' : sysCpu > 20 ? 'var(--yellow)' : 'var(--green)';
+    let html = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">System CPU right now</span>
+        <span style="font-size:22px;font-weight:800;color:${sysColor};">${sysCpu}%</span>
       </div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Also using <strong>${top.memory_mb} MB</strong> of RAM.</div>
-      <div style="background:#ffffff06;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.6;margin-bottom:12px;">
-        <strong style="color:var(--accent);">How to fix:</strong> ${esc(top.fix)}
-      </div>
-      <button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close This App</button>
-      <span style="font-size:11px;color:var(--muted);margin-left:8px;">Only do this if the app is stuck or you don't need it.</span>
+      <button class="btn btn-outline btn-sm" onclick="loadCpuHogs()">Refresh</button>
     </div>`;
 
-    if (active.length > 1) {
-      html += `<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Other apps using CPU:</div>
-      <table><thead><tr><th>App</th><th>CPU</th><th>Memory</th><th></th></tr></thead><tbody>
-      ${active.slice(1, 10).map(p => {
-        const c = p.cpu_percent > 20 ? 'var(--red)' : p.cpu_percent > 10 ? 'var(--orange)' : 'var(--text)';
-        return `<tr>
-          <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
-          <td style="color:${c};font-weight:600;">${p.cpu_percent}%</td>
-          <td>${p.memory_mb} MB</td>
-          <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
-        </tr>`;
-      }).join('')}
-      </tbody></table>`;
+    const active = procs.filter(p => p.cpu_percent > 0);
+    if (!active.length) {
+      html += `<div style="color:var(--muted);text-align:center;padding:16px;font-size:14px;">No app data yet — wait 3 seconds and click Refresh.</div>`;
+      el.innerHTML = html; return;
     }
+
+    const top = active[0];
+    const isHigh = top.cpu_percent > 15;
+    const isMed = top.cpu_percent > 5;
+    const topColor = isHigh ? 'var(--red)' : isMed ? 'var(--orange)' : 'var(--yellow)';
+    const label = isHigh ? 'Main culprit' : isMed ? 'High usage' : 'Highest right now';
+
+    if (sysCpu < 15 && top.cpu_percent < 5) {
+      // CPU is genuinely low — fan is probably spinning from leftover heat
+      html += `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:8px;">CPU is calm — fan is cooling down leftover heat</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+          Your CPU is only at <strong>${sysCpu}%</strong> right now, so no single app is the culprit. The fan is still spinning because the laptop is warm from a recent burst of work — it needs a minute to cool down. This is normal.<br><br>
+          <strong>If the fan keeps going for more than 2-3 minutes:</strong> something may have run recently and left heat behind. Check the table below for the top apps, or go to <strong>PC Health → CPU Temperature</strong> to see if the laptop is genuinely hot.
+        </div>
+      </div>`;
+    } else {
+      // Show the top offender card
+      html += `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${topColor};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <strong style="font-size:17px;">${esc(top.name)}</strong>
+            <span style="font-size:11px;color:var(--muted);">PID ${top.pid}</span>
+            <span style="font-size:11px;background:${topColor}22;color:${topColor};padding:2px 8px;border-radius:4px;font-weight:700;">${label}</span>
+          </div>
+          <span style="color:${topColor};font-weight:800;font-size:22px;">${top.cpu_percent}% CPU</span>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Also using <strong>${top.memory_mb} MB</strong> of RAM.</div>
+        <div style="background:#ffffff06;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.6;margin-bottom:12px;">
+          <strong style="color:var(--accent);">How to fix:</strong> ${esc(top.fix)}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close This App</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:8px;">Only do this if the app is stuck or you don't need it.</span>
+      </div>`;
+    }
+
+    // Always show full table of all processes
+    html += `<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">All apps sorted by CPU usage:</div>
+    <table><thead><tr><th>App</th><th>CPU</th><th>Memory</th><th></th></tr></thead><tbody>
+    ${active.slice(0, 12).map(p => {
+      const c = p.cpu_percent > 15 ? 'var(--red)' : p.cpu_percent > 5 ? 'var(--orange)' : 'var(--text)';
+      return `<tr>
+        <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+        <td style="color:${c};font-weight:${p.cpu_percent > 5 ? '700' : '400'};">${p.cpu_percent}%</td>
+        <td>${p.memory_mb} MB</td>
+        <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+
     el.innerHTML = html;
-  } catch(e) { el.innerHTML = '<div class="loading">Could not load CPU data.</div>'; }
+  } catch(e) { el.innerHTML = '<div class="loading">Could not load CPU data. Restart the app and try again.</div>'; }
 }
 
 // ==================== PROCESSES ====================

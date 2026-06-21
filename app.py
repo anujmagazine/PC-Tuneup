@@ -534,12 +534,15 @@ def _get_cpu_hogs():
         p["cpu_percent"] = round(p["cpu_percent"] / cpu_count, 1)
         p["fix"] = _CPU_FIX_ADVICE.get(p["name"].lower(), _CPU_FIX_DEFAULT)
     procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
-    return [p for p in procs if p["cpu_percent"] > 0.5][:15]
+    # Always return top 15 so the UI can show something even at low load
+    return procs[:15]
 
 
 @app.route("/api/cpu-hogs")
 def cpu_hogs():
-    return jsonify(_get_cpu_hogs())
+    # Include live system CPU so the frontend can show context
+    system_cpu = psutil.cpu_percent(interval=0.5)
+    return jsonify({"system_cpu": system_cpu, "processes": _get_cpu_hogs()})
 
 
 @app.route("/api/kill-process", methods=["POST"])
