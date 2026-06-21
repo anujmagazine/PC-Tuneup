@@ -485,7 +485,7 @@ def processes():
 # ---------------------------------------------------------------------------
 
 _CPU_FIX_ADVICE = {
-    "explorer.exe":      "Windows Explorer (your desktop, taskbar, and File Explorer) is spiking CPU. Do NOT force-close it. Instead: (1) Close all open File Explorer windows. (2) If it keeps spiking, restart it safely using the button below — your desktop will go blank for 2 seconds then come back.",
+    "explorer.exe":      "Windows Explorer (your desktop + File Explorer) is spiking CPU. If restarting Explorer didn't fix it, the problem comes back immediately on load — meaning something triggers it. Try these steps in order: (1) Close ALL File Explorer windows. (2) Disable thumbnail previews: open any File Explorer → click View tab → Options → View tab → tick 'Always show icons, never thumbnails' → OK. This stops Windows from generating thumbnails for large media folders, which is the #1 cause. (3) If still high, restart the PC — 55+ hours of uptime can cause Explorer to accumulate issues. (4) If it persists after a reboot, a shell extension (e.g. from a photo app or cloud storage) may be the cause — run ShellExView (free tool) to disable them one by one.",
     "chrome.exe":        "Chrome is the culprit. Open Chrome's built-in task manager (Shift+Esc inside Chrome) to see which tab is spiking CPU — then close that tab.",
     "msedge.exe":        "Edge browser is using high CPU. Close unused tabs, or restart Edge entirely.",
     "firefox.exe":       "Firefox is CPU-heavy. Try reloading the page or closing background tabs. Restart Firefox if it keeps spinning.",
@@ -538,6 +538,27 @@ def _get_cpu_hogs():
     procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
     # Always return top 15 so the UI can show something even at low load
     return procs[:15]
+
+
+@app.route("/api/disable-thumbnails", methods=["POST"])
+def disable_thumbnails():
+    """Disable thumbnail generation in File Explorer — fixes explorer.exe CPU spikes."""
+    import winreg
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            0, winreg.KEY_SET_VALUE
+        )
+        winreg.SetValueEx(key, "IconsOnly", 0, winreg.REG_DWORD, 1)
+        winreg.CloseKey(key)
+        # Restart explorer so the change takes effect
+        subprocess.run(["taskkill", "/f", "/im", "explorer.exe"], capture_output=True, timeout=10)
+        time.sleep(1)
+        subprocess.Popen(["explorer.exe"])
+        return jsonify({"success": True, "message": "Thumbnails disabled and Explorer restarted. File Explorer will now show icons only — this stops the CPU spike."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/restart-explorer", methods=["POST"])

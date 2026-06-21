@@ -627,8 +627,11 @@ async function runFanDiagnosis(btn) {
       cause = `${top.name} is using ${top.cpu_percent}% CPU — this is the app spinning your fan.`;
       const isExplorer = top.name.toLowerCase() === 'explorer.exe';
       const actionBtn = isExplorer
-        ? `<button class="btn btn-warn btn-sm" onclick="doAction('/api/restart-explorer',this)">Restart Explorer Safely</button>
-           <span style="font-size:11px;color:var(--muted);margin-left:8px;">Desktop goes blank for ~2 seconds then comes back.</span>`
+        ? `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+             <button class="btn btn-primary btn-sm" onclick="doAction('/api/disable-thumbnails',this)">Disable Thumbnails (Most Likely Fix)</button>
+             <button class="btn btn-warn btn-sm" onclick="doAction('/api/restart-explorer',this)">Restart Explorer Only</button>
+           </div>
+           <div style="font-size:11px;color:var(--muted);margin-top:6px;">Desktop goes blank for ~2 seconds then comes back. Try "Disable Thumbnails" first — it fixes the most common cause.</div>`
         : `<button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close ${esc(top.name)}</button>`;
       causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div><div style="margin-top:10px;">${actionBtn}</div>`;
     } else if (top && top.cpu_percent > 10) {
