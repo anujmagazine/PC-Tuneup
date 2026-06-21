@@ -159,11 +159,13 @@ Right-click `start-as-admin.bat` and select **"Run as administrator"**.
 
 ### Step 4: Open in Browser
 
-The app opens automatically. If it doesn't, go to:
+The app opens your browser automatically. If it doesn't open within a few seconds, go to:
 
 ```
 http://localhost:5555
 ```
+
+> **Note:** On some Windows setups, the browser won't auto-open when running in admin mode. If that happens, just type `http://localhost:5555` in your browser manually — the app is still running fine.
 
 ### Stopping the App
 
@@ -175,7 +177,7 @@ Press `Ctrl+C` in the terminal window.
 
 1. Download or clone this repo
 2. Double-click **`start.bat`** (or right-click **`start-as-admin.bat`** → Run as administrator)
-3. The browser opens automatically to `http://localhost:5555`
+3. The browser opens automatically to `http://localhost:5555` — if it doesn't, open it manually
 4. Click **"Fix All Automatically"** on the Fix Problems tab
 
 That's it.

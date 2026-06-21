@@ -1454,5 +1454,13 @@ if __name__ == "__main__":
     print(f"  Admin mode: {'YES' if is_admin() else 'NO (run as admin for full features)'}")
     print("=" * 60)
 
-    Thread(target=lambda: (time.sleep(1.5), webbrowser.open(f"http://localhost:{port}"))).start()
+    def _open_browser():
+        time.sleep(1.5)
+        try:
+            # shell=True opens the browser at user privilege level even when app runs as admin
+            subprocess.Popen(f"start http://localhost:{port}", shell=True)
+        except Exception:
+            webbrowser.open(f"http://localhost:{port}")
+
+    Thread(target=_open_browser).start()
     app.run(host="127.0.0.1", port=port, debug=False)
