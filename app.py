@@ -514,13 +514,26 @@ _CPU_FIX_ADVICE = {
 _CPU_FIX_DEFAULT = "Close this app if you don't need it right now — that will drop CPU immediately. If you need it, check for updates (newer versions often fix performance issues)."
 
 
+_CPU_SYSTEM_EXCLUDE = {
+    "system idle process", "idle", "system", "registry", "memory compression",
+    "secure system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
+    "services.exe", "lsass.exe", "ntoskrnl.exe",
+}
+
 def _get_cpu_hogs():
+    cpu_count = psutil.cpu_count(logical=True) or 1
     with _cpu_lock:
         procs = [{"pid": pid, **data} for pid, data in _cpu_samples.items()]
-    procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
+    # Exclude PID 0 and Windows system pseudo-processes
+    procs = [
+        p for p in procs
+        if p["pid"] != 0 and p["name"].lower() not in _CPU_SYSTEM_EXCLUDE
+    ]
+    # Normalise to single-core % so values stay 0-100
     for p in procs:
+        p["cpu_percent"] = round(p["cpu_percent"] / cpu_count, 1)
         p["fix"] = _CPU_FIX_ADVICE.get(p["name"].lower(), _CPU_FIX_DEFAULT)
-    # Only return processes actually using CPU
+    procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
     return [p for p in procs if p["cpu_percent"] > 0.5][:15]
 
 
