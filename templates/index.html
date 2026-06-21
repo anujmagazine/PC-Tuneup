@@ -625,13 +625,20 @@ async function runFanDiagnosis(btn) {
     } else if (top && top.cpu_percent > 30) {
       causeColor = 'var(--red)';
       cause = `${top.name} is using ${top.cpu_percent}% CPU — this is the app spinning your fan.`;
-      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div>
-        <div style="margin-top:10px;"><button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close ${esc(top.name)}</button></div>`;
+      const isExplorer = top.name.toLowerCase() === 'explorer.exe';
+      const actionBtn = isExplorer
+        ? `<button class="btn btn-warn btn-sm" onclick="doAction('/api/restart-explorer',this)">Restart Explorer Safely</button>
+           <span style="font-size:11px;color:var(--muted);margin-left:8px;">Desktop goes blank for ~2 seconds then comes back.</span>`
+        : `<button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close ${esc(top.name)}</button>`;
+      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div><div style="margin-top:10px;">${actionBtn}</div>`;
     } else if (top && top.cpu_percent > 10) {
       causeColor = 'var(--orange)';
       cause = `${top.name} is using ${top.cpu_percent}% CPU — likely the main contributor.`;
-      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div>
-        <div style="margin-top:10px;"><button class="btn btn-warn btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Close ${esc(top.name)}</button></div>`;
+      const isExplorer2 = top.name.toLowerCase() === 'explorer.exe';
+      const actionBtn2 = isExplorer2
+        ? `<button class="btn btn-warn btn-sm" onclick="doAction('/api/restart-explorer',this)">Restart Explorer Safely</button>`
+        : `<button class="btn btn-warn btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Close ${esc(top.name)}</button>`;
+      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div><div style="margin-top:10px;">${actionBtn2}</div>`;
     } else if (temp_c && temp_c > 65) {
       causeColor = 'var(--orange)';
       cause = `CPU temperature is ${temp_c}°C — laptop is warm. Fan is cooling it down.`;

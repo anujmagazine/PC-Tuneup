@@ -485,6 +485,7 @@ def processes():
 # ---------------------------------------------------------------------------
 
 _CPU_FIX_ADVICE = {
+    "explorer.exe":      "Windows Explorer (your desktop, taskbar, and File Explorer) is spiking CPU. Do NOT force-close it. Instead: (1) Close all open File Explorer windows. (2) If it keeps spiking, restart it safely using the button below — your desktop will go blank for 2 seconds then come back.",
     "chrome.exe":        "Chrome is the culprit. Open Chrome's built-in task manager (Shift+Esc inside Chrome) to see which tab is spiking CPU — then close that tab.",
     "msedge.exe":        "Edge browser is using high CPU. Close unused tabs, or restart Edge entirely.",
     "firefox.exe":       "Firefox is CPU-heavy. Try reloading the page or closing background tabs. Restart Firefox if it keeps spinning.",
@@ -537,6 +538,17 @@ def _get_cpu_hogs():
     procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
     # Always return top 15 so the UI can show something even at low load
     return procs[:15]
+
+
+@app.route("/api/restart-explorer", methods=["POST"])
+def restart_explorer():
+    try:
+        subprocess.run(["taskkill", "/f", "/im", "explorer.exe"], capture_output=True, timeout=10)
+        time.sleep(1)
+        subprocess.Popen(["explorer.exe"])
+        return jsonify({"success": True, "message": "Explorer restarted. Desktop will reappear in a few seconds."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/cpu-hogs")
