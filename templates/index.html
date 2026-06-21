@@ -267,8 +267,10 @@
     <!-- Fan noise section -->
     <div class="section">
       <div class="section-title">What's Causing Your Fan to Spin?</div>
-      <div class="section-desc">These apps are using the most CPU right now. High CPU = fan spins faster + PC slows down. The top offender is shown first with specific fix instructions.</div>
-      <div id="cpu-hog-list"><div class="loading"><span class="spinner"></span>Measuring CPU usage... (takes ~3 seconds)</div></div>
+      <div class="section-desc">Click the button below for a live 2-second measurement. It samples every running app, checks CPU temperature, and tells you exactly what to do.</div>
+      <div id="cpu-hog-list">
+        <button class="btn btn-primary" onclick="runFanDiagnosis(this)">Diagnose Fan Noise Now</button>
+      </div>
     </div>
 
     <hr class="divider">
@@ -415,7 +417,7 @@ document.querySelectorAll('#main-tabs .tab').forEach(tab => {
   });
 });
 function onTab(n) {
-  if (n === 'processes') { loadCpuHogs(); loadProcesses(); loadLeaks(); }
+  if (n === 'processes') { loadProcesses(); loadLeaks(); }
   if (n === 'startup') loadStartup();
   if (n === 'cleanup') loadCleanup();
   if (n === 'health') { loadDiskHealth(); loadThermal(); loadServices(); loadPowerPlan(); }
@@ -577,6 +579,100 @@ async function loadCleanup() {
   </div>
   <button class="btn btn-outline" onclick="doAction('/api/run-disk-cleanup', this)">Open Windows Disk Cleanup</button>
   <span style="font-size:12px;color:var(--muted);margin-left:8px;">The built-in Windows tool for even deeper cleaning.</span>`;
+}
+
+// ==================== FAN DIAGNOSIS ====================
+async function runFanDiagnosis(btn) {
+  const el = document.getElementById('cpu-hog-list');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Measuring for 2 seconds...'; }
+  el.innerHTML = '<div class="loading"><span class="spinner"></span> Taking a live CPU snapshot — sampling all apps for 2 seconds...</div>';
+  try {
+    const data = await (await fetch('/api/fan-diagnosis')).json();
+    const { system_cpu, temp_c, throttled, processes } = data;
+
+    const sysColor = system_cpu > 60 ? 'var(--red)' : system_cpu > 30 ? 'var(--orange)' : system_cpu > 10 ? 'var(--yellow)' : 'var(--green)';
+    const tempColor = temp_c > 85 ? 'var(--red)' : temp_c > 70 ? 'var(--orange)' : temp_c > 55 ? 'var(--yellow)' : 'var(--green)';
+
+    // ── Header strip ──
+    let html = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;flex:1;min-width:130px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Total CPU load</div>
+        <div style="font-size:28px;font-weight:800;color:${sysColor};">${system_cpu}%</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;flex:1;min-width:130px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">CPU temperature</div>
+        <div style="font-size:28px;font-weight:800;color:${temp_c ? tempColor : 'var(--muted)'};">${temp_c ? temp_c + '°C' : 'N/A'}</div>
+        ${throttled ? '<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:2px;">Throttling — slowing down to cool!</div>' : ''}
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn btn-outline btn-sm" onclick="runFanDiagnosis(this)">Scan Again</button>
+      </div>
+    </div>`;
+
+    // ── Root cause card ──
+    const top = processes[0];
+    let cause = '', causeColor = 'var(--yellow)', causeFix = '';
+
+    if (temp_c && temp_c > 80) {
+      causeColor = 'var(--red)';
+      cause = `Your laptop is overheating (${temp_c}°C). The fan is working hard to cool it down.`;
+      causeFix = `<ol style="padding-left:18px;margin-top:6px;line-height:1.8;">
+        <li>Make sure laptop vents aren't blocked — don't use on a bed or pillow</li>
+        <li>Clean dust from the vents with compressed air ($5 at any store)</li>
+        <li>Use a laptop cooling pad ($15–25)</li>
+        <li>If 3+ years old: the thermal paste may need replacing (~$30 at a repair shop)</li>
+      </ol>`;
+    } else if (top && top.cpu_percent > 30) {
+      causeColor = 'var(--red)';
+      cause = `${top.name} is using ${top.cpu_percent}% CPU — this is the app spinning your fan.`;
+      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div>
+        <div style="margin-top:10px;"><button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close ${esc(top.name)}</button></div>`;
+    } else if (top && top.cpu_percent > 10) {
+      causeColor = 'var(--orange)';
+      cause = `${top.name} is using ${top.cpu_percent}% CPU — likely the main contributor.`;
+      causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div>
+        <div style="margin-top:10px;"><button class="btn btn-warn btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Close ${esc(top.name)}</button></div>`;
+    } else if (temp_c && temp_c > 65) {
+      causeColor = 'var(--orange)';
+      cause = `CPU temperature is ${temp_c}°C — laptop is warm. Fan is cooling it down.`;
+      causeFix = `The CPU load looks low right now but the laptop is genuinely warm. Make sure vents are unblocked, use on a hard flat surface, and give it a few minutes to cool.`;
+    } else if (system_cpu > 15) {
+      causeColor = 'var(--yellow)';
+      cause = `CPU is at ${system_cpu}% with load spread across many small processes — no single culprit.`;
+      causeFix = `Close apps you're not actively using, especially browser tabs. Look through the table below and end anything you don't recognise.`;
+    } else {
+      causeColor = 'var(--green)';
+      cause = `CPU is calm (${system_cpu}%) and temperature looks normal. Fan is finishing cooling from earlier work.`;
+      causeFix = `This is normal. The fan will quiet down in 1–2 minutes. If it keeps going, go to <strong>PC Health</strong> and check the temperature reading there.`;
+    }
+
+    html += `<div style="background:var(--card);border:1px solid var(--border);border-left:4px solid ${causeColor};border-radius:10px;padding:16px 18px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Most likely cause</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${cause}</div>
+      <div style="font-size:13px;line-height:1.6;">${causeFix}</div>
+    </div>`;
+
+    // ── Full process table ──
+    if (processes.length) {
+      html += `<div style="font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;">All apps by CPU usage right now:</div>
+      <table><thead><tr><th>App</th><th>CPU %</th><th>Memory</th><th></th></tr></thead><tbody>
+      ${processes.map(p => {
+        const c = p.cpu_percent > 30 ? 'var(--red)' : p.cpu_percent > 10 ? 'var(--orange)' : p.cpu_percent > 3 ? 'var(--yellow)' : 'var(--muted)';
+        return `<tr>
+          <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+          <td><span style="color:${c};font-weight:${p.cpu_percent > 3 ? '700':'400'};">${p.cpu_percent}%</span></td>
+          <td>${p.memory_mb} MB</td>
+          <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);padding:14px;">Diagnosis failed. Make sure the app is running and try again.</div>
+      <button class="btn btn-primary" style="margin-top:10px;" onclick="runFanDiagnosis(this)">Diagnose Fan Noise Now</button>`;
+  }
 }
 
 // ==================== CPU HOGS ====================

@@ -540,9 +540,52 @@ def _get_cpu_hogs():
 
 @app.route("/api/cpu-hogs")
 def cpu_hogs():
-    # Include live system CPU so the frontend can show context
     system_cpu = psutil.cpu_percent(interval=0.5)
     return jsonify({"system_cpu": system_cpu, "processes": _get_cpu_hogs()})
+
+
+@app.route("/api/fan-diagnosis")
+def fan_diagnosis():
+    """Live 1-second measurement for accurate fan noise diagnosis."""
+    # Seed per-process CPU counters
+    psutil.cpu_percent(interval=None)
+    for proc in psutil.process_iter(["pid", "name", "cpu_percent"]):
+        pass
+    time.sleep(1)  # measure over exactly 1 second
+
+    system_cpu = round(psutil.cpu_percent(interval=None), 1)
+
+    procs = []
+    for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
+        try:
+            info = proc.info
+            if info["pid"] == 0:
+                continue
+            name = info["name"]
+            if name.lower() in _CPU_SYSTEM_EXCLUDE:
+                continue
+            cpu = round(info["cpu_percent"] or 0, 1)
+            mem = round(info["memory_info"].rss / (1024 ** 2), 1) if info["memory_info"] else 0
+            procs.append({
+                "pid": info["pid"],
+                "name": name,
+                "cpu_percent": cpu,   # raw psutil value, no normalization
+                "memory_mb": mem,
+                "fix": _CPU_FIX_ADVICE.get(name.lower(), _CPU_FIX_DEFAULT),
+            })
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
+
+    thermal = _get_thermal_info()
+
+    return jsonify({
+        "system_cpu": system_cpu,
+        "temp_c": thermal.get("temp_c"),
+        "throttled": thermal.get("throttled", False),
+        "processes": procs[:15],
+    })
 
 
 @app.route("/api/kill-process", methods=["POST"])
