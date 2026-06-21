@@ -113,7 +113,7 @@ def _track_cpu():
         with _cpu_lock:
             _cpu_samples.clear()
             _cpu_samples.update(snap)
-        time.sleep(3)
+        time.sleep(1)
 
 
 Thread(target=_track_cpu, daemon=True).start()
