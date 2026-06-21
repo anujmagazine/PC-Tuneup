@@ -53,6 +53,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 _mem_tracker = {}  # pid -> list of (timestamp, rss_mb)
 _mem_tracker_lock = Lock()
 
+_cpu_samples = {}  # pid -> {name, cpu_percent, memory_mb}
+_cpu_lock = Lock()
+
 
 def _track_memory():
     """Background thread: sample process memory every 60s for leak detection."""
@@ -88,6 +91,32 @@ def _track_memory():
 
 
 Thread(target=_track_memory, daemon=True).start()
+
+
+def _track_cpu():
+    """Background thread: sample process CPU every 3s for fan-noise diagnosis."""
+    # Warm-up: first call always returns 0, so seed the cache first
+    list(psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]))
+    time.sleep(3)
+    while True:
+        snap = {}
+        for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
+            try:
+                info = proc.info
+                snap[info["pid"]] = {
+                    "name": info["name"],
+                    "cpu_percent": round(info["cpu_percent"] or 0, 1),
+                    "memory_mb": round(info["memory_info"].rss / (1024 ** 2), 1) if info["memory_info"] else 0,
+                }
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        with _cpu_lock:
+            _cpu_samples.clear()
+            _cpu_samples.update(snap)
+        time.sleep(3)
+
+
+Thread(target=_track_cpu, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -167,16 +196,27 @@ def diagnose():
     # 2. High CPU usage
     cpu = psutil.cpu_percent(interval=1)
     if cpu > 80:
+        with _cpu_lock:
+            top_cpu = sorted(_cpu_samples.values(), key=lambda x: x["cpu_percent"], reverse=True)
+        culprit = top_cpu[0]["name"] if top_cpu and top_cpu[0]["cpu_percent"] > 20 else None
+        culprit_pct = top_cpu[0]["cpu_percent"] if culprit else None
+
+        title = f"{culprit} is overloading your processor" if culprit else "Something is overloading your processor"
+        desc = f"CPU is at {cpu}%. "
+        if culprit:
+            desc += f"{culprit} is using {culprit_pct}% CPU on its own — that's the reason your fan is spinning and everything feels slow."
+        else:
+            desc += "An app or background process is using most of your processing power, making everything else slow."
         issues.append({
-            "id": "high_cpu", "title": "Something is overloading your processor",
-            "description": f"CPU is at {cpu}%. An app or background process is using most of your processing power, making everything else slow.",
+            "id": "high_cpu", "title": title,
+            "description": desc,
             "severity": "high",
             "impact": "30-50% faster",
             "effort": "1 min",
             "action": None,
             "action_label": "Find the App",
             "tab": "processes",
-            "how": "Go to the Running Apps tab. Look at the CPU % column. Find the app using the most CPU and click 'End' to close it.",
+            "how": "Go to the Running Apps tab → 'What's Causing Fan Noise?' section. It shows the top CPU-using app with specific fix steps.",
             "needs_admin": False,
         })
 
@@ -438,6 +478,55 @@ def _get_heavy_processes():
 @app.route("/api/processes")
 def processes():
     return jsonify(_get_heavy_processes())
+
+
+# ---------------------------------------------------------------------------
+# CPU Hog Detection
+# ---------------------------------------------------------------------------
+
+_CPU_FIX_ADVICE = {
+    "chrome.exe":        "Chrome is the culprit. Open Chrome's built-in task manager (Shift+Esc inside Chrome) to see which tab is spiking CPU — then close that tab.",
+    "msedge.exe":        "Edge browser is using high CPU. Close unused tabs, or restart Edge entirely.",
+    "firefox.exe":       "Firefox is CPU-heavy. Try reloading the page or closing background tabs. Restart Firefox if it keeps spinning.",
+    "code.exe":          "VS Code is CPU-heavy. Disable unused extensions (Ctrl+Shift+X → disable) or close large projects.",
+    "teams.exe":         "Microsoft Teams spikes CPU especially during or after calls. Quit it from the system tray and relaunch.",
+    "slack.exe":         "Slack's Electron engine is CPU-hungry. Restart the app — this usually drops CPU immediately.",
+    "discord.exe":       "Discord spikes during calls. Try: User Settings → Voice & Video → turn off Hardware Acceleration.",
+    "zoom.exe":          "Zoom is heavy during video calls. Turn off your camera (Alt+V) or blur background — these reduce CPU a lot.",
+    "antimalware service executable": "Windows Defender is running a background scan. This is safe and will stop on its own. To reduce impact, schedule scans for overnight in Windows Security → Virus & Threat Protection → Manage Settings → Schedule Scan.",
+    "msmpeng.exe":       "Windows Defender scan in progress — it will stop on its own. To schedule for off-hours: Windows Security → Virus & Threat Protection → Quick Scan → Manage Settings.",
+    "searchindexer.exe": "Windows Search is building its index (happens after updates or when you add lots of files). It stops on its own. To stop it permanently: PC Health tab → stop 'Windows Search (heavy indexing)'.",
+    "tiworker.exe":      "Windows Update is running maintenance tasks in the background. It will stop when done. Check Settings → Windows Update for any pending updates.",
+    "wuauclt.exe":       "Windows is downloading/installing updates. Let it finish — interrupting can cause issues. Check progress in Settings → Windows Update.",
+    "mrt.exe":           "Windows Malware Removal Tool is scanning (runs once a month, takes a few minutes). It will stop on its own — nothing to do.",
+    "onedrive.exe":      "OneDrive is syncing files to the cloud. Right-click the cloud icon in your taskbar (bottom right) and choose 'Pause syncing for 2 hours'.",
+    "dropbox.exe":       "Dropbox is syncing. Right-click the Dropbox icon in your taskbar and choose 'Pause syncing'.",
+    "steam.exe":         "Steam is downloading a game update. Open Steam → Library → Downloads → pause the download.",
+    "node.exe":          "A web development server or background app is running hot. Check which app launched Node.js (check your VS Code terminal or any running dev servers).",
+    "python.exe":        "A Python script is consuming CPU. Check any running scripts or Jupyter notebooks and stop what you don't need.",
+    "java.exe":          "A Java app is CPU-heavy (common with IDEs, Minecraft, or enterprise apps). Close it if you're not using it.",
+    "javaw.exe":         "A Java app is CPU-heavy. Close it if you're not using it actively.",
+    "photoshop.exe":     "Photoshop is processing. Wait for it to finish — or use Edit → Purge → All to clear its memory cache.",
+    "premiere.exe":      "Adobe Premiere is rendering or processing video. This is expected for video work — it uses the CPU by design.",
+    "obs64.exe":         "OBS Studio is recording or streaming, which is CPU-heavy by nature. Lower the output resolution or switch to hardware encoding: Settings → Output → Encoder → select your GPU.",
+}
+
+_CPU_FIX_DEFAULT = "Close this app if you don't need it right now — that will drop CPU immediately. If you need it, check for updates (newer versions often fix performance issues)."
+
+
+def _get_cpu_hogs():
+    with _cpu_lock:
+        procs = [{"pid": pid, **data} for pid, data in _cpu_samples.items()]
+    procs.sort(key=lambda x: x["cpu_percent"], reverse=True)
+    for p in procs:
+        p["fix"] = _CPU_FIX_ADVICE.get(p["name"].lower(), _CPU_FIX_DEFAULT)
+    # Only return processes actually using CPU
+    return [p for p in procs if p["cpu_percent"] > 0.5][:15]
+
+
+@app.route("/api/cpu-hogs")
+def cpu_hogs():
+    return jsonify(_get_cpu_hogs())
 
 
 @app.route("/api/kill-process", methods=["POST"])
