@@ -522,12 +522,13 @@ _CPU_SYSTEM_EXCLUDE = {
 
 def _get_cpu_hogs():
     cpu_count = psutil.cpu_count(logical=True) or 1
+    own_pid = os.getpid()
     with _cpu_lock:
         procs = [{"pid": pid, **data} for pid, data in _cpu_samples.items()]
-    # Exclude PID 0 and Windows system pseudo-processes
     procs = [
         p for p in procs
-        if p["pid"] != 0 and p["name"].lower() not in _CPU_SYSTEM_EXCLUDE
+        if p["pid"] != 0 and p["pid"] != own_pid
+        and p["name"].lower() not in _CPU_SYSTEM_EXCLUDE
     ]
     # Normalise to single-core % so values stay 0-100
     for p in procs:
@@ -555,12 +556,13 @@ def fan_diagnosis():
 
     system_cpu = round(psutil.cpu_percent(interval=None), 1)
 
+    own_pid = os.getpid()
     procs = []
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
         try:
             info = proc.info
-            if info["pid"] == 0:
-                continue
+            if info["pid"] == 0 or info["pid"] == own_pid:
+                continue  # skip System Idle and this app itself
             name = info["name"]
             if name.lower() in _CPU_SYSTEM_EXCLUDE:
                 continue
@@ -569,7 +571,7 @@ def fan_diagnosis():
             procs.append({
                 "pid": info["pid"],
                 "name": name,
-                "cpu_percent": cpu,   # raw psutil value, no normalization
+                "cpu_percent": cpu,
                 "memory_mb": mem,
                 "fix": _CPU_FIX_ADVICE.get(name.lower(), _CPU_FIX_DEFAULT),
             })
