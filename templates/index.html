@@ -31,12 +31,25 @@
     background: linear-gradient(135deg, #eab30811, #f9731611);
     border: 1px solid #eab30833; border-radius: 10px;
     padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7;
+    transition: opacity 0.4s ease, max-height 0.4s ease, padding 0.4s ease, margin 0.4s ease;
+    overflow: hidden; max-height: 300px;
   }
+  .admin-banner.collapsing { opacity: 0; max-height: 0; padding: 0; margin: 0; }
   .admin-banner strong { color: var(--yellow); }
   .admin-banner code {
     background: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent);
   }
   .admin-banner ol { padding-left: 20px; margin-top: 6px; }
+  .admin-banner-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .banner-dismiss { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+  .banner-dismiss:hover { color: var(--text); }
+  .banner-countdown { font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .admin-banner-hint {
+    background: #eab30811; border: 1px solid #eab30833; border-radius: 8px;
+    padding: 8px 14px; margin-bottom: 20px; font-size: 12px; color: var(--yellow);
+    display: flex; align-items: center; justify-content: space-between;
+    transition: opacity 0.3s ease;
+  }
 
   /* Tabs */
   .tabs { display: flex; gap: 3px; margin-bottom: 22px; background: var(--card); padding: 3px; border-radius: 10px; border: 1px solid var(--border); flex-wrap: wrap; width: fit-content; }
@@ -177,12 +190,23 @@
 
   <!-- Admin Banner (shown when NOT admin) -->
   <div class="admin-banner" id="admin-banner" style="display:none;">
-    <strong>You're running in Limited Mode.</strong> Some fixes (like stopping services and cleaning update files) need admin access. Here's how to get full access:
-    <ol>
-      <li>Close this app (press Ctrl+C in the black terminal window)</li>
-      <li>Open the <strong>pc-tuneup</strong> folder</li>
-      <li>Right-click <code>start-as-admin.bat</code> and choose <strong>"Run as administrator"</strong></li>
-    </ol>
+    <div class="admin-banner-top">
+      <div>
+        <strong>You're running in Limited Mode.</strong> Some fixes (like stopping services and cleaning update files) need admin access. Here's how to get full access:
+        <ol>
+          <li>Close this app (press Ctrl+C in the black terminal window)</li>
+          <li>Open the <strong>pc-tuneup</strong> folder</li>
+          <li>Right-click <code>start-as-admin.bat</code> and choose <strong>"Run as administrator"</strong></li>
+        </ol>
+      </div>
+      <button class="banner-dismiss" onclick="dismissBanner(true)" title="Dismiss">✕</button>
+    </div>
+    <div class="banner-countdown" id="banner-countdown">Auto-hiding in <strong id="banner-secs">30</strong>s — <a href="#" style="color:var(--yellow);" onclick="dismissBanner(true);return false;">hide now</a></div>
+  </div>
+  <!-- Collapsed hint shown after banner is dismissed -->
+  <div class="admin-banner-hint" id="admin-banner-hint" style="display:none;">
+    <span>⚠ Limited Mode — some fixes need admin access</span>
+    <a href="#" style="color:var(--yellow);font-weight:600;" onclick="expandBanner();return false;">Show instructions ›</a>
   </div>
 
   <!-- Tabs -->
@@ -404,6 +428,40 @@ function scoreColor(s) { return s >= 80 ? '#22c55e' : s >= 50 ? '#eab308' : '#ef
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4500); }
 
 let _isAdmin = false;
+let _bannerTimer = null;
+let _bannerCountdown = null;
+
+function dismissBanner(permanent) {
+  const banner = document.getElementById('admin-banner');
+  const hint = document.getElementById('admin-banner-hint');
+  clearInterval(_bannerCountdown);
+  clearTimeout(_bannerTimer);
+  banner.classList.add('collapsing');
+  setTimeout(() => { banner.style.display = 'none'; banner.classList.remove('collapsing'); }, 420);
+  if (permanent) {
+    sessionStorage.setItem('bannerDismissed', '1');
+    hint.style.display = 'flex';
+  }
+}
+
+function expandBanner() {
+  sessionStorage.removeItem('bannerDismissed');
+  const hint = document.getElementById('admin-banner-hint');
+  const banner = document.getElementById('admin-banner');
+  hint.style.display = 'none';
+  banner.style.display = 'block';
+  startBannerCountdown();
+}
+
+function startBannerCountdown() {
+  const secsEl = document.getElementById('banner-secs');
+  let secs = 30;
+  _bannerCountdown = setInterval(() => {
+    secs--;
+    if (secsEl) secsEl.textContent = secs;
+    if (secs <= 0) { clearInterval(_bannerCountdown); dismissBanner(false); }
+  }, 1000);
+}
 
 // ==================== TABS ====================
 document.querySelectorAll('#main-tabs .tab').forEach(tab => {
@@ -444,8 +502,19 @@ async function loadOverview() {
     document.getElementById('uptime-val').textContent = d.uptime;
     const badge = document.getElementById('admin-badge');
     const banner = document.getElementById('admin-banner');
-    if (d.is_admin) { badge.textContent = 'Full Access'; badge.className = 'badge badge-admin'; banner.style.display = 'none'; }
-    else { badge.textContent = 'Limited Mode'; badge.className = 'badge badge-limited'; banner.style.display = 'block'; }
+    const hint = document.getElementById('admin-banner-hint');
+    if (d.is_admin) {
+      badge.textContent = 'Full Access'; badge.className = 'badge badge-admin';
+      banner.style.display = 'none'; hint.style.display = 'none';
+    } else {
+      badge.textContent = 'Limited Mode'; badge.className = 'badge badge-limited';
+      if (sessionStorage.getItem('bannerDismissed')) {
+        banner.style.display = 'none'; hint.style.display = 'flex';
+      } else {
+        banner.style.display = 'block'; hint.style.display = 'none';
+        startBannerCountdown();
+      }
+    }
   } catch(e) {}
 }
 
