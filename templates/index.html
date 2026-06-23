@@ -116,6 +116,52 @@
   .btn-lg { padding: 12px 24px; font-size: 15px; }
   .refresh-btn { background: var(--accent); color: white; border: none; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; }
 
+  /* Hero card — "Fix this one thing" */
+  .hero-card {
+    position: relative; overflow: hidden;
+    border-radius: 14px; padding: 24px 28px; margin-bottom: 22px;
+    border: 1px solid transparent;
+    transition: opacity 0.3s ease, max-height 0.4s ease;
+  }
+  .hero-card.severity-high {
+    background: linear-gradient(135deg, #ef444412, #f9731608);
+    border-color: #ef444433;
+  }
+  .hero-card.severity-medium {
+    background: linear-gradient(135deg, #eab30812, #f9731608);
+    border-color: #eab30833;
+  }
+  .hero-card.severity-low {
+    background: linear-gradient(135deg, #22c55e10, #3b82f608);
+    border-color: #22c55e33;
+  }
+  .hero-label {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 10px;
+  }
+  .hero-label.high { background: #ef444422; color: var(--red); }
+  .hero-label.medium { background: #eab30822; color: var(--yellow); }
+  .hero-label.low { background: #22c55e22; color: var(--green); }
+  .hero-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; line-height: 1.3; }
+  .hero-desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; max-width: 680px; }
+  .hero-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hero-meta { font-size: 12px; color: var(--muted); }
+  .hero-meta strong { color: var(--text); }
+  .hero-skip { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-family: inherit; padding: 0; margin-left: auto; }
+  .hero-skip:hover { color: var(--text); text-decoration: underline; }
+  .hero-pulse {
+    position: absolute; top: 18px; right: 24px;
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .hero-pulse.high { background: var(--red); box-shadow: 0 0 0 0 #ef444466; animation: herobeat 1.8s ease-out infinite; }
+  .hero-pulse.medium { background: var(--yellow); box-shadow: 0 0 0 0 #eab30866; animation: herobeat 2.2s ease-out infinite; }
+  @keyframes herobeat {
+    0% { box-shadow: 0 0 0 0 currentColor; }
+    70% { box-shadow: 0 0 0 8px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
   /* Fix-all banner */
   .fixall-banner {
     background: linear-gradient(135deg, #6366f118, #22c55e10);
@@ -243,6 +289,9 @@
       <div class="stat-card"><div class="stat-label">Temp</div><div class="stat-val" id="temp-val">--</div><div class="stat-sub" id="temp-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="temp-bar" style="width:0"></div></div></div>
       <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-val" id="uptime-val" style="font-size:20px;">--</div><div class="stat-sub">Since restart</div></div>
     </div>
+
+    <!-- Hero Card: Fix This One Thing -->
+    <div id="hero-card-wrap"></div>
 
     <!-- Fix All Banner -->
     <div class="fixall-banner" id="fixall-banner" style="display:none;">
@@ -553,6 +602,37 @@ async function loadDiagnosis() {
     else if (score >= 50) { ht.textContent = 'Your PC has several problems.'; hd.textContent = `${d.issues.length} issues found. Fixing the top ones will make a noticeable difference.`; }
     else { ht.textContent = 'Your PC has serious performance problems.'; hd.textContent = `${d.issues.length} issues found. Start with the red ones — they'll make the biggest difference.`; }
 
+    // Hero card — top issue
+    const heroWrap = document.getElementById('hero-card-wrap');
+    if (d.issues.length > 0 && !sessionStorage.getItem('heroSkipped')) {
+      const top = d.issues[0];
+      const sev = top.severity;
+      const sevLabel = sev === 'high' ? '⚡ Fix This First' : sev === 'medium' ? '▲ Should Fix' : '↑ Nice to Fix';
+      let heroBtn = '';
+      if (top.action) {
+        heroBtn = `<button class="btn btn-lg ${sev === 'high' ? 'btn-danger' : 'btn-primary'}" onclick="heroFix('${top.action}', this)">
+          ${esc(top.action_label)}
+        </button>`;
+      } else if (top.tab) {
+        heroBtn = `<button class="btn btn-lg btn-primary" onclick="goTab('${top.tab}')">
+          ${esc(top.action_label || 'See Details')}
+        </button>`;
+      }
+      heroWrap.innerHTML = `<div class="hero-card severity-${sev}" id="hero-card">
+        <div class="hero-pulse ${sev}"></div>
+        <div class="hero-label ${sev}">${sevLabel}</div>
+        <div class="hero-title">${esc(top.title)}</div>
+        <div class="hero-desc">${esc(top.description)}</div>
+        <div class="hero-foot">
+          ${heroBtn}
+          <div class="hero-meta"><strong>Expected:</strong> ${esc(top.impact)} &nbsp;·&nbsp; <strong>Time:</strong> ${esc(top.effort || 'varies')}</div>
+          <button class="hero-skip" onclick="skipHero()">Skip for now ›</button>
+        </div>
+      </div>`;
+    } else {
+      heroWrap.innerHTML = '';
+    }
+
     // Fix-all banner
     const autoFix = d.issues.filter(i => i.action && !i.needs_admin);
     const banner = document.getElementById('fixall-banner');
@@ -599,6 +679,30 @@ async function loadDiagnosis() {
 }
 
 function goTab(name) { document.querySelector(`[data-tab="${name}"]`).click(); }
+
+function skipHero() {
+  sessionStorage.setItem('heroSkipped', '1');
+  const card = document.getElementById('hero-card');
+  if (card) { card.style.opacity = '0'; setTimeout(() => card.remove(), 300); }
+}
+
+async function heroFix(url, btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Fixing...';
+  try {
+    const d = await (await fetch(url, {method:'POST'})).json();
+    showToast(d.message || d.error || 'Done!');
+    if (d.success !== false) {
+      const card = document.getElementById('hero-card');
+      if (card) {
+        card.innerHTML = `<div style="text-align:center;padding:12px 0;color:var(--green);font-size:15px;font-weight:700;">
+          ✓ Done! Rescanning your PC...</div>`;
+      }
+      sessionStorage.removeItem('heroSkipped');
+      setTimeout(refreshAll, 1200);
+    }
+  } catch(e) { showToast('Failed: ' + e.message); btn.innerHTML = orig; btn.disabled = false; }
+}
 
 async function fixAll(btn) {
   btn.disabled = true; btn.textContent = 'Fixing everything...';
