@@ -9,6 +9,12 @@
     --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a; --text: #e4e4e7;
     --muted: #8b8d97; --accent: #6366f1; --green: #22c55e; --yellow: #eab308;
     --red: #ef4444; --orange: #f97316; --blue: #3b82f6;
+    /* type scale */
+    --fs-xs: 11px; --fs-sm: 13px; --fs-md: 15px;
+    /* severity tokens */
+    --h-bg: #ef444418; --h-bd: #ef44443a;
+    --m-bg: #eab30818; --m-bd: #eab3083a;
+    --l-bg: #22c55e18; --l-bd: #22c55e3a;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
@@ -21,15 +27,15 @@
   .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
   .badge-admin { background: #22c55e22; color: var(--green); border: 1px solid #22c55e44; }
   .badge-limited { background: #eab30822; color: var(--yellow); border: 1px solid #eab30844; }
-  .badge-impact { background: #6366f122; color: var(--accent); border: 1px solid #6366f144; font-size: 12px; padding: 4px 10px; border-radius: 6px; font-weight: 700; }
-  .badge-effort { background: #22c55e11; color: var(--green); font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+  .badge-impact { background: #6366f122; color: var(--accent); border: 1px solid #6366f144; font-size: var(--fs-xs); padding: 4px 10px; border-radius: 6px; font-weight: 700; }
+  .badge-effort { background: #22c55e11; color: var(--green); font-size: var(--fs-xs); padding: 2px 8px; border-radius: 4px; }
 
   .container { max-width: 1100px; margin: 0 auto; padding: 20px 24px; }
 
   /* Admin banner */
   .admin-banner {
-    background: linear-gradient(135deg, #eab30811, #f9731611);
-    border: 1px solid #eab30833; border-radius: 10px;
+    background: var(--m-bg);
+    border: 1px solid var(--m-bd); border-radius: 10px;
     padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7;
     transition: opacity 0.4s ease, max-height 0.4s ease, padding 0.4s ease, margin 0.4s ease;
     overflow: hidden; max-height: 300px;
@@ -37,7 +43,7 @@
   .admin-banner.collapsing { opacity: 0; max-height: 0; padding: 0; margin: 0; }
   .admin-banner strong { color: var(--yellow); }
   .admin-banner code {
-    background: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent);
+    background: #000; padding: 2px 6px; border-radius: 4px; font-size: var(--fs-xs); color: var(--accent);
   }
   .admin-banner ol { padding-left: 20px; margin-top: 6px; }
   .admin-banner-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -45,8 +51,8 @@
   .banner-dismiss:hover { color: var(--text); }
   .banner-countdown { font-size: 11px; color: var(--muted); margin-top: 10px; }
   .admin-banner-hint {
-    background: #eab30811; border: 1px solid #eab30833; border-radius: 8px;
-    padding: 8px 14px; margin-bottom: 20px; font-size: 12px; color: var(--yellow);
+    background: var(--m-bg); border: 1px solid var(--m-bd); border-radius: 8px;
+    padding: 8px 14px; margin-bottom: 20px; font-size: var(--fs-sm); color: var(--yellow);
     display: flex; align-items: center; justify-content: space-between;
     transition: opacity 0.3s ease;
   }
@@ -65,7 +71,7 @@
   .health-ring .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 36px; font-weight: 800; }
   .health-info { flex: 1; min-width: 200px; }
   .health-info h2 { font-size: 20px; margin-bottom: 4px; }
-  .health-info p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .health-info p { font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
 
   /* Stat strip */
   .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 24px; }
@@ -85,19 +91,19 @@
     padding: 18px 20px; margin-bottom: 10px; transition: border-color 0.2s;
   }
   .fix-card:hover { border-color: #3a3d4a; }
-  .fix-card.high { border-left: 3px solid var(--red); }
-  .fix-card.medium { border-left: 3px solid var(--yellow); }
-  .fix-card.low { border-left: 3px solid var(--green); }
+  .fix-card.high { border-left: 3px solid var(--red); background: linear-gradient(90deg, var(--h-bg) 0%, transparent 60%); }
+  .fix-card.medium { border-left: 3px solid var(--yellow); background: linear-gradient(90deg, var(--m-bg) 0%, transparent 60%); }
+  .fix-card.low { border-left: 3px solid var(--green); background: linear-gradient(90deg, var(--l-bg) 0%, transparent 60%); }
   .fix-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .fix-main { flex: 1; min-width: 0; }
   .fix-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
   .fix-title { font-weight: 700; font-size: 15px; }
-  .fix-sev { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
-  .fix-sev.high { background: #ef444422; color: var(--red); }
-  .fix-sev.medium { background: #eab30822; color: var(--yellow); }
-  .fix-sev.low { background: #22c55e22; color: var(--green); }
-  .fix-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
-  .fix-how { font-size: 12px; color: var(--text); background: #ffffff06; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; line-height: 1.6; }
+  .fix-sev { font-size: var(--fs-xs); padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+  .fix-sev.high { background: var(--h-bg); color: var(--red); border: 1px solid var(--h-bd); }
+  .fix-sev.medium { background: var(--m-bg); color: var(--yellow); border: 1px solid var(--m-bd); }
+  .fix-sev.low { background: var(--l-bg); color: var(--green); border: 1px solid var(--l-bd); }
+  .fix-desc { font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+  .fix-how { font-size: var(--fs-sm); color: var(--text); background: #ffffff06; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; line-height: 1.6; }
   .fix-how strong { color: var(--accent); }
   .fix-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .fix-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
@@ -123,32 +129,23 @@
     border: 1px solid transparent;
     transition: opacity 0.3s ease, max-height 0.4s ease;
   }
-  .hero-card.severity-high {
-    background: linear-gradient(135deg, #ef444412, #f9731608);
-    border-color: #ef444433;
-  }
-  .hero-card.severity-medium {
-    background: linear-gradient(135deg, #eab30812, #f9731608);
-    border-color: #eab30833;
-  }
-  .hero-card.severity-low {
-    background: linear-gradient(135deg, #22c55e10, #3b82f608);
-    border-color: #22c55e33;
-  }
+  .hero-card.severity-high { background: linear-gradient(135deg, var(--h-bg), transparent); border-color: var(--h-bd); }
+  .hero-card.severity-medium { background: linear-gradient(135deg, var(--m-bg), transparent); border-color: var(--m-bd); }
+  .hero-card.severity-low { background: linear-gradient(135deg, var(--l-bg), transparent); border-color: var(--l-bd); }
   .hero-label {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
     padding: 3px 10px; border-radius: 20px; margin-bottom: 10px;
   }
-  .hero-label.high { background: #ef444422; color: var(--red); }
-  .hero-label.medium { background: #eab30822; color: var(--yellow); }
-  .hero-label.low { background: #22c55e22; color: var(--green); }
+  .hero-label.high { background: var(--h-bg); color: var(--red); border: 1px solid var(--h-bd); }
+  .hero-label.medium { background: var(--m-bg); color: var(--yellow); border: 1px solid var(--m-bd); }
+  .hero-label.low { background: var(--l-bg); color: var(--green); border: 1px solid var(--l-bd); }
   .hero-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; line-height: 1.3; }
-  .hero-desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; max-width: 680px; }
+  .hero-desc { font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; margin-bottom: 16px; max-width: 680px; }
   .hero-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .hero-meta { font-size: 12px; color: var(--muted); }
+  .hero-meta { font-size: var(--fs-xs); color: var(--muted); }
   .hero-meta strong { color: var(--text); }
-  .hero-skip { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-family: inherit; padding: 0; margin-left: auto; }
+  .hero-skip { background: none; border: none; color: var(--muted); cursor: pointer; font-size: var(--fs-xs); font-family: inherit; padding: 0; margin-left: auto; }
   .hero-skip:hover { color: var(--text); text-decoration: underline; }
   .hero-pulse {
     position: absolute; top: 18px; right: 24px;
@@ -169,8 +166,8 @@
     padding: 20px 24px; margin-bottom: 20px;
     display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
-  .fixall-text h3 { font-size: 16px; margin-bottom: 2px; }
-  .fixall-text p { font-size: 13px; color: var(--muted); }
+  .fixall-text h3 { font-size: var(--fs-md); margin-bottom: 2px; }
+  .fixall-text p { font-size: var(--fs-sm); color: var(--muted); }
 
   /* Section */
   .section { margin-bottom: 28px; }
@@ -185,7 +182,7 @@
   /* Cards & Grid */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-  .card h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card h3 { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
   .card .big-num { font-size: 28px; font-weight: 700; }
 
   /* Tables */
@@ -196,22 +193,22 @@
 
   /* Startup */
   .startup-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
-  .startup-name { font-weight: 600; font-size: 14px; }
+  .startup-name { font-weight: 600; font-size: var(--fs-sm); }
   .startup-cmd { font-size: 11px; color: var(--muted); word-break: break-all; }
   .startup-source { font-size: 10px; padding: 2px 8px; background: var(--border); border-radius: 4px; white-space: nowrap; }
 
   /* Duplicates */
   .dup-group { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
-  .dup-file { font-size: 12px; color: var(--muted); word-break: break-all; display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
-  .dup-waste { font-size: 13px; color: var(--orange); font-weight: 600; }
+  .dup-file { font-size: var(--fs-sm); color: var(--muted); word-break: break-all; display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
+  .dup-waste { font-size: var(--fs-sm); color: var(--yellow); font-weight: 600; }
 
   /* Input */
   .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
-  .text-input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-family: inherit; font-size: 14px; }
+  .text-input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-family: inherit; font-size: var(--fs-sm); }
   .text-input:focus { outline: none; border-color: var(--accent); }
 
   /* Toast */
-  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--accent); border-radius: 10px; padding: 12px 18px; font-size: 14px; max-width: 400px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--accent); border-radius: 10px; padding: 12px 18px; font-size: var(--fs-sm); max-width: 400px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
   .toast.show { transform: translateY(0); opacity: 1; }
 
   .no-issues { text-align: center; color: var(--green); padding: 28px; font-size: 15px; }
@@ -384,7 +381,7 @@
     </div>
 
     <button class="btn btn-primary" style="margin-bottom:16px;" onclick="doAction('/api/open-task-manager', this)">Open Task Manager (Startup Tab)</button>
-    <div style="font-size:14px;margin-bottom:10px;"><strong id="startup-count">--</strong> apps start with Windows</div>
+    <div style="font-size:var(--fs-sm);margin-bottom:10px;"><strong id="startup-count">--</strong> apps start with Windows</div>
     <div id="startup-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
   </div>
 
@@ -420,13 +417,13 @@
       <div class="grid">
         <div class="card">
           <h3>Power Mode</h3>
-          <div id="power-plan" style="font-size:12px;color:var(--muted);margin-bottom:10px;">Loading...</div>
+          <div id="power-plan" style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:10px;">Loading...</div>
           <button class="btn btn-primary" onclick="doAction('/api/set-high-performance', this)">Switch to High Performance</button>
           <div style="font-size:11px;color:var(--muted);margin-top:6px;">Uses more battery but removes power-saving slowdowns.</div>
         </div>
         <div class="card">
           <h3>Visual Effects</h3>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Windows shows animations that use CPU. Turning them off makes menus feel instant.</div>
+          <div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:10px;">Windows shows animations that use CPU. Turning them off makes menus feel instant.</div>
           <button class="btn btn-primary" onclick="doAction('/api/disable-visual-effects', this)">Turn Off Animations</button>
           <div style="font-size:11px;color:var(--muted);margin-top:6px;">You can undo this later in Windows Settings > Accessibility > Visual Effects.</div>
         </div>
@@ -444,7 +441,7 @@
       <div class="card"><h3>Total Received</h3><div class="big-num" id="net-recv">--</div><div class="stat-sub">Since boot</div></div>
     </div>
 
-    <div class="section-title" style="font-size:15px;">Apps With Active Network Connections</div>
+    <div class="section-title">Apps With Active Network Connections</div>
     <div class="tip" style="margin-bottom:14px;">
       <strong>What can I do here?</strong>
       <ul>
@@ -462,7 +459,7 @@
 
     <div style="margin-top:14px;">
       <button class="btn btn-outline" onclick="doAction('/api/flush-dns', this)">Fix Slow Websites (Flush DNS)</button>
-      <span style="font-size:12px;color:var(--muted);margin-left:8px;">Clears your network name cache. Often fixes websites that won't load or load slowly.</span>
+      <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:8px;">Clears your network name cache. Often fixes websites that won't load or load slowly.</span>
     </div>
   </div>
 </div>
@@ -472,7 +469,7 @@
 <script>
 // ==================== HELPERS ====================
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function colorPct(p) { return p > 85 ? 'var(--red)' : p > 70 ? 'var(--orange)' : p > 50 ? 'var(--yellow)' : 'var(--green)'; }
+function colorPct(p) { return p > 75 ? 'var(--red)' : p > 50 ? 'var(--yellow)' : 'var(--green)'; }
 function scoreColor(s) { return s >= 80 ? '#22c55e' : s >= 50 ? '#eab308' : '#ef4444'; }
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4500); }
 
@@ -574,7 +571,7 @@ async function loadThermalDash() {
       document.getElementById('temp-val').textContent = d.temp_c + '\u00B0';
       const pct = Math.min(100, (d.temp_c / 100) * 100);
       document.getElementById('temp-bar').style.width = pct + '%';
-      document.getElementById('temp-bar').style.background = d.temp_c > 80 ? 'var(--red)' : d.temp_c > 65 ? 'var(--orange)' : 'var(--green)';
+      document.getElementById('temp-bar').style.background = d.temp_c > 80 ? 'var(--red)' : d.temp_c > 65 ? 'var(--yellow)' : 'var(--green)';
       document.getElementById('temp-sub').textContent = d.throttled ? 'Throttling!' : 'Normal';
     } else {
       document.getElementById('temp-val').textContent = '--';
@@ -732,26 +729,26 @@ async function loadCleanup() {
   el.innerHTML = `<div class="grid">
     <div class="card">
       <h3>Temporary Files</h3>
-      <div class="big-num" style="color:${ts > 500 ? 'var(--orange)' : 'var(--text)'};">${ts} MB</div>
-      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">Junk files left behind by programs. Completely safe to delete.</div>
+      <div class="big-num" style="color:${ts > 500 ? 'var(--yellow)' : 'var(--text)'};">${ts} MB</div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin:6px 0 10px;">Junk files left behind by programs. Completely safe to delete.</div>
       <button class="btn ${ts > 100 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-temp', this)">Delete Junk Files</button>
     </div>
     <div class="card">
       <h3>Browser Cache</h3>
-      <div class="big-num" style="color:${bt > 500 ? 'var(--orange)' : 'var(--text)'};">${Math.round(bt)} MB</div>
-      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">${bd}. Passwords and bookmarks are NOT affected.</div>
+      <div class="big-num" style="color:${bt > 500 ? 'var(--yellow)' : 'var(--text)'};">${Math.round(bt)} MB</div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin:6px 0 10px;">${bd}. Passwords and bookmarks are NOT affected.</div>
       <button class="btn ${bt > 200 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-browser-cache', this)">Clean Browser Cache</button>
     </div>
     <div class="card">
       <h3>Windows Update Cache</h3>
-      <div class="big-num" style="color:${wu > 500 ? 'var(--orange)' : 'var(--text)'};">${wu} MB</div>
-      <div style="font-size:12px;color:var(--muted);margin:6px 0 10px;">Old update files. ${_isAdmin ? 'Safe to clean.' : 'Requires admin access.'}</div>
+      <div class="big-num" style="color:${wu > 500 ? 'var(--yellow)' : 'var(--text)'};">${wu} MB</div>
+      <div style="font-size:var(--fs-sm);color:var(--muted);margin:6px 0 10px;">Old update files. ${_isAdmin ? 'Safe to clean.' : 'Requires admin access.'}</div>
       <button class="btn ${wu > 200 ? 'btn-warn' : 'btn-outline'}" onclick="doAction('/api/clean-wu-cache', this)">Clean Update Cache</button>
       ${!_isAdmin ? '<div style="font-size:11px;color:var(--yellow);margin-top:6px;">Needs admin. See banner at top.</div>' : ''}
     </div>
   </div>
   <button class="btn btn-outline" onclick="doAction('/api/run-disk-cleanup', this)">Open Windows Disk Cleanup</button>
-  <span style="font-size:12px;color:var(--muted);margin-left:8px;">The built-in Windows tool for even deeper cleaning.</span>`;
+  <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:8px;">The built-in Windows tool for even deeper cleaning.</span>`;
 }
 
 // ==================== FAN DIAGNOSIS ====================
@@ -763,19 +760,19 @@ async function runFanDiagnosis(btn) {
     const data = await (await fetch('/api/fan-diagnosis')).json();
     const { system_cpu, temp_c, throttled, processes } = data;
 
-    const sysColor = system_cpu > 60 ? 'var(--red)' : system_cpu > 30 ? 'var(--orange)' : system_cpu > 10 ? 'var(--yellow)' : 'var(--green)';
-    const tempColor = temp_c > 85 ? 'var(--red)' : temp_c > 70 ? 'var(--orange)' : temp_c > 55 ? 'var(--yellow)' : 'var(--green)';
+    const sysColor = system_cpu > 50 ? 'var(--red)' : system_cpu > 20 ? 'var(--yellow)' : 'var(--green)';
+    const tempColor = temp_c > 80 ? 'var(--red)' : temp_c > 65 ? 'var(--yellow)' : 'var(--green)';
 
     // ── Header strip ──
     let html = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;flex:1;min-width:130px;">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Total CPU load</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Total CPU load</div>
         <div style="font-size:28px;font-weight:800;color:${sysColor};">${system_cpu}%</div>
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;flex:1;min-width:130px;">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">CPU temperature</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">CPU temperature</div>
         <div style="font-size:28px;font-weight:800;color:${temp_c ? tempColor : 'var(--muted)'};">${temp_c ? temp_c + '°C' : 'N/A'}</div>
-        ${throttled ? '<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:2px;">Throttling — slowing down to cool!</div>' : ''}
+        ${throttled ? '<div style="font-size:var(--fs-xs);color:var(--red);font-weight:700;margin-top:2px;">Throttling — slowing down to cool!</div>' : ''}
       </div>
       <div style="display:flex;align-items:flex-end;">
         <button class="btn btn-outline btn-sm" onclick="runFanDiagnosis(this)">Scan Again</button>
@@ -808,7 +805,7 @@ async function runFanDiagnosis(btn) {
         : `<button class="btn btn-danger btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Force Close ${esc(top.name)}</button>`;
       causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div><div style="margin-top:10px;">${actionBtn}</div>`;
     } else if (top && top.cpu_percent > 10) {
-      causeColor = 'var(--orange)';
+      causeColor = 'var(--yellow)';
       cause = `${top.name} is using ${top.cpu_percent}% CPU — likely the main contributor.`;
       const isExplorer2 = top.name.toLowerCase() === 'explorer.exe';
       const actionBtn2 = isExplorer2
@@ -816,7 +813,7 @@ async function runFanDiagnosis(btn) {
         : `<button class="btn btn-warn btn-sm" onclick="killProc(${top.pid},'${esc(top.name)}',this)">Close ${esc(top.name)}</button>`;
       causeFix = `<div style="margin-top:6px;">${esc(top.fix)}</div><div style="margin-top:10px;">${actionBtn2}</div>`;
     } else if (temp_c && temp_c > 65) {
-      causeColor = 'var(--orange)';
+      causeColor = 'var(--yellow)';
       cause = `CPU temperature is ${temp_c}°C — laptop is warm. Fan is cooling it down.`;
       causeFix = `The CPU load looks low right now but the laptop is genuinely warm. Make sure vents are unblocked, use on a hard flat surface, and give it a few minutes to cool.`;
     } else if (system_cpu > 15) {
@@ -830,20 +827,20 @@ async function runFanDiagnosis(btn) {
     }
 
     html += `<div style="background:var(--card);border:1px solid var(--border);border-left:4px solid ${causeColor};border-radius:10px;padding:16px 18px;margin-bottom:16px;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Most likely cause</div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${cause}</div>
-      <div style="font-size:13px;line-height:1.6;">${causeFix}</div>
+      <div style="font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Most likely cause</div>
+      <div style="font-size:var(--fs-md);font-weight:700;margin-bottom:8px;">${cause}</div>
+      <div style="font-size:var(--fs-sm);line-height:1.6;">${causeFix}</div>
     </div>`;
 
     // ── Full process table ──
     if (processes.length) {
-      html += `<div style="font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;">All apps by CPU usage right now:</div>
+      html += `<div style="font-size:var(--fs-sm);color:var(--muted);font-weight:600;margin-bottom:8px;">All apps by CPU usage right now:</div>
       <table><thead><tr><th>App</th><th>CPU %</th><th>Memory</th><th></th></tr></thead><tbody>
       ${processes.map(p => {
-        const c = p.cpu_percent > 30 ? 'var(--red)' : p.cpu_percent > 10 ? 'var(--orange)' : p.cpu_percent > 3 ? 'var(--yellow)' : 'var(--muted)';
+        const c = p.cpu_percent > 20 ? 'var(--red)' : p.cpu_percent > 5 ? 'var(--yellow)' : 'var(--muted)';
         return `<tr>
-          <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
-          <td><span style="color:${c};font-weight:${p.cpu_percent > 3 ? '700':'400'};">${p.cpu_percent}%</span></td>
+          <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:var(--fs-xs);">PID ${p.pid}</span></td>
+          <td><span style="color:${c};font-weight:${p.cpu_percent > 5 ? '700':'400'};">${p.cpu_percent}%</span></td>
           <td>${p.memory_mb} MB</td>
           <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
         </tr>`;
@@ -866,13 +863,13 @@ async function loadCpuHogs() {
     const sysCpu = data.system_cpu;
     const procs = data.processes || [];
 
-    const sysColor = sysCpu > 50 ? 'var(--red)' : sysCpu > 25 ? 'var(--orange)' : sysCpu > 10 ? 'var(--yellow)' : 'var(--green)';
+    const sysColor = sysCpu > 50 ? 'var(--red)' : sysCpu > 20 ? 'var(--yellow)' : 'var(--green)';
     const active = procs.filter(p => p.cpu_percent > 0);
 
     // Always lead with the live CPU meter + refresh
     let html = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 20px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Total CPU load right now</span>
+        <span style="font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Total CPU load right now</span>
         <span style="font-size:26px;font-weight:800;color:${sysColor};">${sysCpu}%</span>
       </div>
       <button class="btn btn-outline btn-sm" onclick="loadCpuHogs()">Refresh</button>
@@ -885,15 +882,15 @@ async function loadCpuHogs() {
 
     const top = active[0];
     const topIsHigh = top.cpu_percent > 10;
-    const topColor = top.cpu_percent > 20 ? 'var(--red)' : top.cpu_percent > 10 ? 'var(--orange)' : 'var(--yellow)';
+    const topColor = top.cpu_percent > 20 ? 'var(--red)' : 'var(--yellow)';
 
     // Spotlight card — always show the #1 CPU user, whatever it is
     html += `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${topColor};border-radius:10px;padding:16px 18px;margin-bottom:14px;">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Highest CPU user right now</div>
+      <div style="font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Highest CPU user right now</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <strong style="font-size:17px;">${esc(top.name)}</strong>
-          <span style="font-size:11px;color:var(--muted);">PID ${top.pid}</span>
+          <span style="font-size:var(--fs-xs);color:var(--muted);">PID ${top.pid}</span>
         </div>
         <span style="color:${topColor};font-weight:800;font-size:22px;">${top.cpu_percent}%</span>
       </div>
@@ -912,13 +909,13 @@ async function loadCpuHogs() {
     }
 
     // Full sortable table — always visible
-    html += `<div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:600;">All apps by CPU usage (highest first):</div>
+    html += `<div style="font-size:var(--fs-sm);color:var(--muted);margin-bottom:8px;font-weight:600;">All apps by CPU usage (highest first):</div>
     <table><thead><tr><th>App</th><th>CPU %</th><th>Memory</th><th></th></tr></thead><tbody>
     ${active.slice(0, 15).map(p => {
-      const c = p.cpu_percent > 20 ? 'var(--red)' : p.cpu_percent > 10 ? 'var(--orange)' : p.cpu_percent > 3 ? 'var(--yellow)' : 'var(--muted)';
+      const c = p.cpu_percent > 20 ? 'var(--red)' : p.cpu_percent > 5 ? 'var(--yellow)' : 'var(--muted)';
       return `<tr>
-        <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
-        <td><span style="color:${c};font-weight:${p.cpu_percent > 3 ? '700':'400'};">${p.cpu_percent}%</span></td>
+        <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:var(--fs-xs);">PID ${p.pid}</span></td>
+        <td><span style="color:${c};font-weight:${p.cpu_percent > 5 ? '700':'400'};">${p.cpu_percent}%</span></td>
         <td>${p.memory_mb} MB</td>
         <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
       </tr>`;
@@ -934,7 +931,7 @@ async function loadProcesses() {
   try {
     const procs = await (await fetch('/api/processes')).json();
     document.getElementById('proc-table').innerHTML = procs.map(p => `<tr>
-      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:var(--fs-xs);">PID ${p.pid}</span></td>
       <td>${p.memory_mb} MB</td>
       <td>${p.cpu_percent.toFixed(1)}%</td>
       <td><button class="btn btn-danger btn-sm" onclick="killProc(${p.pid},'${esc(p.name)}',this)">End</button></td>
@@ -959,7 +956,7 @@ async function loadLeaks() {
           <span style="color:var(--red);font-weight:700;font-size:15px;">+${l.growth_mb} MB growth</span>
         </div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-          Started at <strong>${l.start_mb} MB</strong> &rarr; now at <strong style="color:var(--orange);">${l.current_mb} MB</strong>
+          Started at <strong>${l.start_mb} MB</strong> &rarr; now at <strong style="color:var(--yellow);">${l.current_mb} MB</strong>
           &nbsp;&middot;&nbsp; Measured over ${l.samples} samples
         </div>
         <div style="background:#ffffff06;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.6;">
@@ -1004,7 +1001,7 @@ async function loadDiskHealth() {
       const ok = d.status.toLowerCase() === 'ok';
       return `<div class="card" style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><div style="font-weight:700;">${esc(d.model)}</div><div style="font-size:12px;color:var(--muted);">${d.size_gb} GB &middot; ${esc(d.media_type||'Unknown')}</div></div>
+          <div><div style="font-weight:700;">${esc(d.model)}</div><div style="font-size:var(--fs-sm);color:var(--muted);">${d.size_gb} GB &middot; ${esc(d.media_type||'Unknown')}</div></div>
           <div style="font-weight:700;color:${ok?'var(--green)':'var(--red)'};">${ok?'Healthy':esc(d.status)}</div>
         </div>
         ${d.smart_warning ? '<div style="color:var(--red);font-weight:600;margin-top:8px;">Your drive may fail soon. Back up ALL important files NOW to an external drive or cloud storage.</div>' : ''}
@@ -1020,16 +1017,16 @@ async function loadThermal() {
     let h = '<div class="card">';
     if (d.temp_c) {
       const hot = d.temp_c > 80, warm = d.temp_c > 65;
-      h += `<div style="font-size:32px;font-weight:800;color:${hot?'var(--red)':warm?'var(--orange)':'var(--green)'};">${d.temp_c}\u00B0C</div>`;
+      h += `<div style="font-size:32px;font-weight:800;color:${hot?'var(--red)':warm?'var(--yellow)':'var(--green)'};">${d.temp_c}\u00B0C</div>`;
       h += `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${d.throttled ? '<span style="color:var(--red);font-weight:700;">Your CPU is throttling! It\'s running slower because it\'s too hot.</span>' : hot ? 'Getting dangerously hot.' : warm ? 'Warm, but okay.' : 'Normal temperature.'}</div>`;
     } else {
       h += '<div style="font-size:15px;font-weight:600;">Temperature sensor not available</div>';
-      h += '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Some PCs don\'t report temperature to Windows. This is normal.</div>';
+      h += '<div style="font-size:var(--fs-sm);color:var(--muted);margin-top:4px;">Some PCs don\'t report temperature to Windows. This is normal.</div>';
     }
     if (d.max_speed_mhz) {
       const ratio = d.current_speed_mhz / d.max_speed_mhz;
       h += `<div style="margin-top:10px;font-size:13px;">Speed: <strong style="color:${ratio<0.7?'var(--red)':'var(--green)'};">${d.current_speed_mhz} MHz</strong> / ${d.max_speed_mhz} MHz max</div>`;
-      if (ratio < 0.7) h += '<div style="color:var(--orange);font-size:12px;margin-top:4px;">CPU is running much slower than it should. Switch to High Performance power mode below.</div>';
+      if (ratio < 0.7) h += '<div style="color:var(--yellow);font-size:var(--fs-sm);margin-top:4px;">CPU is running much slower than it should. Switch to High Performance power mode below.</div>';
     }
     h += '</div>';
     h += `<div class="tip" style="margin-top:12px;"><strong>How to fix overheating:</strong><ol>
@@ -1059,11 +1056,11 @@ async function loadServices() {
     } else { tip.innerHTML = ''; }
     const el = document.getElementById('services-list');
     if (!services.length) { el.innerHTML = '<div class="no-issues">No unnecessary services found. Your system is lean!</div>'; return; }
-    el.innerHTML = `<div style="margin-bottom:10px;font-size:14px;"><strong>${services.length}</strong> unnecessary services running</div>` +
+    el.innerHTML = `<div style="margin-bottom:10px;font-size:var(--fs-sm);"><strong>${services.length}</strong> unnecessary services running</div>` +
       `<table><thead><tr><th>Service</th><th>Why You Don't Need It</th><th></th></tr></thead><tbody>` +
       services.map(s => `<tr>
         <td><strong>${esc(s.display_name)}</strong></td>
-        <td style="font-size:12px;color:var(--muted);">${esc(s.description)}</td>
+        <td style="font-size:var(--fs-sm);color:var(--muted);">${esc(s.description)}</td>
         <td><button class="btn btn-warn btn-sm" ${_isAdmin?'':`disabled title="Run as admin first"`} onclick="stopSvc('${esc(s.name)}',this)">${_isAdmin ? 'Stop' : 'Needs Admin'}</button></td>
       </tr>`).join('') + '</tbody></table>';
   } catch(e) { document.getElementById('services-list').innerHTML = '<div class="loading">Failed.</div>'; }
@@ -1091,7 +1088,7 @@ async function loadNetwork() {
     const tb = document.getElementById('net-table');
     if (!d.processes.length) { tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;">No active network connections right now.</td></tr>'; return; }
     tb.innerHTML = d.processes.map(p => `<tr>
-      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:10px;">PID ${p.pid}</span></td>
+      <td><strong>${esc(p.name)}</strong> <span style="color:var(--muted);font-size:var(--fs-xs);">PID ${p.pid}</span></td>
       <td>${p.connections}</td><td>${p.read_mb} MB</td><td>${p.write_mb} MB</td>
     </tr>`).join('');
   } catch(e) { document.getElementById('net-table').innerHTML = '<tr><td colspan="4">Failed.</td></tr>'; }
@@ -1110,7 +1107,7 @@ async function scanDuplicates() {
     else if (!d.duplicates.length) { el.innerHTML = `<div class="no-issues">No duplicates found in ${esc(d.scanned_path)}.</div>`; }
     else {
       window._dupData = d;
-      let html = `<div style="margin-bottom:14px;font-size:14px;">Found <strong>${d.duplicates.length}</strong> groups wasting <strong style="color:var(--orange);">${d.total_waste_mb} MB</strong>.
+      let html = `<div style="margin-bottom:14px;font-size:var(--fs-sm);">Found <strong>${d.duplicates.length}</strong> groups wasting <strong style="color:var(--yellow);">${d.total_waste_mb} MB</strong>.
         <button class="btn btn-danger btn-sm" style="margin-left:10px;" onclick="deleteAllDups()">Delete All Copies (Keep Originals)</button></div>`;
       html += '<div class="tip" style="margin-bottom:14px;"><strong>How it works:</strong> The first file is the "original" (marked green). Click Delete on copies you don\'t need.</div>';
       html += d.duplicates.map((g,gi) => `<div class="dup-group" id="dup-group-${gi}">
@@ -1120,7 +1117,7 @@ async function scanDuplicates() {
         </div>
         ${g.files.map((f,fi) => `<div class="dup-file" id="dup-${gi}-${fi}">
           <span style="flex:1;">${fi===0?'<strong style="color:var(--green);">[KEEP]</strong> ':''}${esc(f.path)} (${f.size_mb} MB)</span>
-          ${fi===0?'<span style="font-size:10px;color:var(--green);">Original</span>':`<button class="btn btn-danger btn-sm" onclick="delDupFile(${gi},${fi},this)">Delete</button>`}
+          ${fi===0?'<span style="font-size:var(--fs-xs);color:var(--green);">Original</span>':`<button class="btn btn-danger btn-sm" onclick="delDupFile(${gi},${fi},this)">Delete</button>`}
         </div>`).join('')}
       </div>`).join('');
       el.innerHTML = html;
@@ -1134,7 +1131,7 @@ async function delDupFile(gi,fi,btn) {
   btn.disabled = true; btn.textContent = '...';
   try {
     const d = await (await fetch('/api/delete-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:f.path})})).json();
-    if (d.success) { document.getElementById(`dup-${gi}-${fi}`).innerHTML = `<span style="color:var(--green);font-size:12px;">Deleted (freed ${d.freed_mb} MB)</span>`; showToast(d.message); }
+    if (d.success) { document.getElementById(`dup-${gi}-${fi}`).innerHTML = `<span style="color:var(--green);font-size:var(--fs-xs);">Deleted (freed ${d.freed_mb} MB)</span>`; showToast(d.message); }
     else { showToast(d.error); btn.disabled = false; btn.textContent = 'Delete'; }
   } catch(e) { showToast('Delete failed.'); btn.disabled = false; btn.textContent = 'Delete'; }
 }
@@ -1144,7 +1141,7 @@ async function delGroupCopies(gi) {
   try {
     const d = await (await fetch('/api/delete-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:copies.map(f=>f.path)})})).json();
     showToast(d.message);
-    if (d.deleted>0) { for (let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:12px;">Deleted</span>'; } }
+    if (d.deleted>0) { for (let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:var(--fs-xs);">Deleted</span>'; } }
   } catch(e) { showToast('Failed.'); }
 }
 async function deleteAllDups() {
@@ -1155,7 +1152,7 @@ async function deleteAllDups() {
   try {
     const d = await (await fetch('/api/delete-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths})})).json();
     showToast(d.message);
-    if (d.deleted>0) { groups.forEach((g,gi) => { for(let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:12px;">Deleted</span>'; } }); }
+    if (d.deleted>0) { groups.forEach((g,gi) => { for(let fi=1;fi<g.files.length;fi++) { const r=document.getElementById(`dup-${gi}-${fi}`); if(r) r.innerHTML='<span style="color:var(--green);font-size:var(--fs-xs);">Deleted</span>'; } }); }
   } catch(e) { showToast('Failed.'); }
 }
 
