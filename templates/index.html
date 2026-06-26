@@ -20,10 +20,36 @@
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
 
   /* Header */
-  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { font-size: 20px; font-weight: 700; }
-  header h1 span { color: var(--accent); }
-  .hdr-right { display: flex; align-items: center; gap: 10px; }
+  header {
+    background: linear-gradient(90deg, #0b0d18 0%, #131628 50%, #0b0d18 100%);
+    border-bottom: 1px solid #6366f128; padding: 15px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .hdr-left { display: flex; align-items: center; gap: 14px; }
+  header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .brand-pc {
+    background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .brand-rest { color: var(--text); font-weight: 700; }
+  .hdr-pill {
+    font-size: var(--fs-xs); color: #a5b4fc; font-weight: 600; letter-spacing: 0.5px;
+    padding: 3px 12px; background: #6366f110; border: 1px solid #6366f128; border-radius: 20px;
+    display: none;
+  }
+  @media (min-width: 600px) { .hdr-pill { display: inline-block; } }
+  .hdr-right { display: flex; align-items: center; gap: 12px; }
+  .refresh-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+    color: white; border: none; padding: 9px 20px; border-radius: 9px;
+    cursor: pointer; font-family: inherit; font-size: var(--fs-sm); font-weight: 600;
+    box-shadow: 0 4px 16px #6366f138; transition: box-shadow 0.2s, transform 0.15s;
+    letter-spacing: 0.1px;
+  }
+  .refresh-btn:hover { box-shadow: 0 6px 24px #6366f155; transform: translateY(-1px); }
+  .refresh-btn:active { transform: translateY(0); box-shadow: 0 2px 8px #6366f130; }
   .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
   .badge-admin { background: #22c55e22; color: var(--green); border: 1px solid #22c55e44; }
   .badge-limited { background: #eab30822; color: var(--yellow); border: 1px solid #eab30844; }
@@ -74,13 +100,33 @@
   .health-info p { font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
 
   /* Stat strip */
-  .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 24px; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; text-align: center; }
-  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .stat-val { font-size: 24px; font-weight: 700; margin: 2px 0; }
-  .stat-sub { font-size: 11px; color: var(--muted); }
-  .stat-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
-  .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 16px; text-align: center;
+    border-top: 3px solid var(--border);
+    transition: border-top-color 0.7s ease, box-shadow 0.7s ease;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 14px;
+    background: radial-gradient(ellipse at 50% 0%, currentColor 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.7s ease; pointer-events: none;
+  }
+  .stat-card.s-ok  { border-top-color: var(--green); color: var(--green); }
+  .stat-card.s-ok::before  { opacity: 0.04; }
+  .stat-card.s-warn { border-top-color: var(--yellow); color: var(--yellow);
+    box-shadow: 0 0 22px #eab30814; }
+  .stat-card.s-warn::before { opacity: 0.04; }
+  .stat-card.s-bad  { border-top-color: var(--red); color: var(--red);
+    box-shadow: 0 0 22px #ef444414; }
+  .stat-card.s-bad::before  { opacity: 0.05; }
+  .stat-icon { font-size: 17px; display: block; margin-bottom: 8px; opacity: 0.75; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; }
+  .stat-val { font-size: 26px; font-weight: 800; margin: 4px 0 2px; color: var(--text); letter-spacing: -0.5px; }
+  .stat-sub { font-size: var(--fs-xs); color: var(--muted); }
+  .stat-bar { height: 4px; background: var(--border); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
 
   /* Top Fixes - the hero section */
   .topfix-section { margin-bottom: 28px; }
@@ -222,10 +268,13 @@
 <body>
 
 <header>
-  <h1><span>PC</span> TuneUp</h1>
+  <div class="hdr-left">
+    <h1><span class="brand-pc">PC</span><span class="brand-rest"> TuneUp</span></h1>
+    <span class="hdr-pill">Windows Optimizer</span>
+  </div>
   <div class="hdr-right">
     <span id="admin-badge" class="badge badge-limited">Checking...</span>
-    <button class="refresh-btn" onclick="refreshAll()">Scan Again</button>
+    <button class="refresh-btn" onclick="refreshAll()">↻ Scan Again</button>
   </div>
 </header>
 
@@ -280,11 +329,11 @@
     </div>
 
     <div class="stat-strip">
-      <div class="stat-card"><div class="stat-label">CPU</div><div class="stat-val" id="cpu-val">--</div><div class="stat-sub" id="cpu-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="cpu-bar" style="width:0"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Memory</div><div class="stat-val" id="ram-val">--</div><div class="stat-sub" id="ram-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="ram-bar" style="width:0"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Disk</div><div class="stat-val" id="disk-val">--</div><div class="stat-sub" id="disk-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="disk-bar" style="width:0"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Temp</div><div class="stat-val" id="temp-val">--</div><div class="stat-sub" id="temp-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="temp-bar" style="width:0"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-val" id="uptime-val" style="font-size:20px;">--</div><div class="stat-sub">Since restart</div></div>
+      <div class="stat-card" id="sc-cpu"><span class="stat-icon">⚡</span><div class="stat-label">CPU</div><div class="stat-val" id="cpu-val">--</div><div class="stat-sub" id="cpu-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="cpu-bar" style="width:0"></div></div></div>
+      <div class="stat-card" id="sc-ram"><span class="stat-icon">◈</span><div class="stat-label">Memory</div><div class="stat-val" id="ram-val">--</div><div class="stat-sub" id="ram-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="ram-bar" style="width:0"></div></div></div>
+      <div class="stat-card" id="sc-disk"><span class="stat-icon">◉</span><div class="stat-label">Disk</div><div class="stat-val" id="disk-val">--</div><div class="stat-sub" id="disk-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="disk-bar" style="width:0"></div></div></div>
+      <div class="stat-card" id="sc-temp"><span class="stat-icon">◎</span><div class="stat-label">Temp</div><div class="stat-val" id="temp-val">--</div><div class="stat-sub" id="temp-sub"></div><div class="stat-bar"><div class="stat-bar-fill" id="temp-bar" style="width:0"></div></div></div>
+      <div class="stat-card" id="sc-uptime"><span class="stat-icon">◷</span><div class="stat-label">Uptime</div><div class="stat-val" id="uptime-val" style="font-size:20px;letter-spacing:-0.5px;">--</div><div class="stat-sub">Since restart</div></div>
     </div>
 
     <!-- Hero Card: Fix This One Thing -->
@@ -472,6 +521,10 @@ function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.
 function colorPct(p) { return p > 75 ? 'var(--red)' : p > 50 ? 'var(--yellow)' : 'var(--green)'; }
 function scoreColor(s) { return s >= 80 ? '#22c55e' : s >= 50 ? '#eab308' : '#ef4444'; }
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4500); }
+function setStatStatus(id, val, warnAt, badAt) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'stat-card ' + (val >= badAt ? 's-bad' : val >= warnAt ? 's-warn' : 's-ok');
+}
 
 let _isAdmin = false;
 let _bannerTimer = null;
@@ -546,6 +599,12 @@ async function loadOverview() {
     document.getElementById('disk-bar').style.width = d.disk_percent + '%';
     document.getElementById('disk-bar').style.background = colorPct(d.disk_percent);
     document.getElementById('uptime-val').textContent = d.uptime;
+    setStatStatus('sc-cpu',  d.cpu_percent,  50, 75);
+    setStatStatus('sc-ram',  d.ram_percent,  60, 80);
+    setStatStatus('sc-disk', d.disk_percent, 75, 90);
+    // uptime: warn after 7 days (168h), bad after 14 days
+    const uptimeHours = d.uptime ? parseInt(d.uptime) : 0;
+    setStatStatus('sc-uptime', uptimeHours, 168, 336);
     const badge = document.getElementById('admin-badge');
     const banner = document.getElementById('admin-banner');
     const hint = document.getElementById('admin-banner-hint');
@@ -573,9 +632,11 @@ async function loadThermalDash() {
       document.getElementById('temp-bar').style.width = pct + '%';
       document.getElementById('temp-bar').style.background = d.temp_c > 80 ? 'var(--red)' : d.temp_c > 65 ? 'var(--yellow)' : 'var(--green)';
       document.getElementById('temp-sub').textContent = d.throttled ? 'Throttling!' : 'Normal';
+      setStatStatus('sc-temp', d.temp_c, 65, 80);
     } else {
       document.getElementById('temp-val').textContent = '--';
       document.getElementById('temp-sub').textContent = d.current_speed_mhz ? `${d.current_speed_mhz} MHz` : 'No sensor';
+      document.getElementById('sc-temp').className = 'stat-card s-ok';
     }
   } catch(e) {}
 }
