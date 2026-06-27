@@ -27,19 +27,16 @@
     position: sticky; top: 0; z-index: 100;
     backdrop-filter: blur(12px);
   }
-  .hdr-left { display: flex; align-items: center; gap: 14px; }
-  header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .hdr-left { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  header h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.4px; line-height: 1.2; }
   .brand-pc {
     background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .brand-rest { color: var(--text); font-weight: 700; }
-  .hdr-pill {
-    font-size: var(--fs-xs); color: #a5b4fc; font-weight: 600; letter-spacing: 0.5px;
-    padding: 3px 12px; background: #6366f110; border: 1px solid #6366f128; border-radius: 20px;
-    display: none;
+  .hdr-subtitle {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.2px; font-weight: 400;
   }
-  @media (min-width: 600px) { .hdr-pill { display: inline-block; } }
   .hdr-right { display: flex; align-items: center; gap: 12px; }
   .refresh-btn {
     background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
@@ -270,7 +267,7 @@
 <header>
   <div class="hdr-left">
     <h1><span class="brand-pc">PC</span><span class="brand-rest"> TuneUp</span></h1>
-    <span class="hdr-pill">Windows Optimizer</span>
+    <span class="hdr-subtitle">Windows system optimizer</span>
   </div>
   <div class="hdr-right">
     <span id="admin-badge" class="badge badge-limited">Checking...</span>
