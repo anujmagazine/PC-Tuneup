@@ -1,0 +1,18 @@
+Step 1 — Open Command Prompt
+Press Windows key, type cmd, press Enter
+
+Step 2 — Navigate to the app folder
+cd C:\Users\amaga\Downloads\claude-workspace\pc-tuneup
+
+Step 3 — Install packages (first time only)
+py -m pip install -r requirements.txt
+
+Step 4 — Start the app
+py app.py
+You should see this in the terminal:
+
+PC TuneUp - Local System Optimizer
+
+Running at: http://localhost:5555
+
+Keep that terminal window open — closing it stops the app.

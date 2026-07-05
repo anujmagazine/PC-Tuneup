@@ -21,7 +21,14 @@ from flask import Flask, render_template, jsonify, request
 
 import psutil
 
-app = Flask(__name__)
+def _resource_path(name):
+    """Resolve bundled resources both in dev and in a PyInstaller exe."""
+    if getattr(sys, "frozen", False):
+        return os.path.join(sys._MEIPASS, name)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+
+
+app = Flask(__name__, template_folder=_resource_path("templates"))
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -42,7 +49,12 @@ def bytes_to_mb(b):
     return round(b / (1024 ** 2), 2)
 
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# When running as a packaged exe, the app dir is a temp extraction folder that
+# gets wiped on exit — persist data under %LOCALAPPDATA% instead.
+if getattr(sys, "frozen", False):
+    DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "PCTuneUp", "data")
+else:
+    DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
