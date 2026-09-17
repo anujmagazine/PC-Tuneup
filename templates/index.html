@@ -531,6 +531,7 @@ function dismissBanner(permanent) {
   const banner = document.getElementById('admin-banner');
   const hint = document.getElementById('admin-banner-hint');
   clearInterval(_bannerCountdown);
+  _bannerCountdown = null;
   clearTimeout(_bannerTimer);
   banner.classList.add('collapsing');
   setTimeout(() => { banner.style.display = 'none'; banner.classList.remove('collapsing'); }, 420);
@@ -550,6 +551,7 @@ function expandBanner() {
 }
 
 function startBannerCountdown() {
+  if (_bannerCountdown) return;
   const secsEl = document.getElementById('banner-secs');
   let secs = 30;
   _bannerCountdown = setInterval(() => {
@@ -1225,7 +1227,36 @@ async function doActionRefresh(url, btn) { await doAction(url, btn); setTimeout(
 
 function refreshAll() { loadOverview(); loadThermalDash(); loadDiagnosis(); }
 refreshAll();
-setInterval(() => { loadOverview(); loadThermalDash(); }, 30000);
+
+// ==================== AUTO-REFRESH ====================
+// Polls dashboard data every 5s so the UI reflects live system state without
+// a manual click — but only while the dashboard tab is visible and the
+// browser tab is focused, so we don't burn CPU polling in the background
+// (ironic for a PC optimizer to do otherwise).
+let _autoRefreshTimer = null;
+
+function isDashboardActive() {
+  const tab = document.getElementById('tab-dashboard');
+  return !!tab && tab.classList.contains('active');
+}
+
+function startAutoRefresh() {
+  if (_autoRefreshTimer) return;
+  _autoRefreshTimer = setInterval(() => {
+    if (!document.hidden && isDashboardActive()) refreshAll();
+  }, 5000);
+}
+
+function stopAutoRefresh() {
+  clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopAutoRefresh(); else startAutoRefresh();
+});
+
+startAutoRefresh();
 </script>
 </body>
 </html>
