@@ -1553,4 +1553,4 @@ if __name__ == "__main__":
             webbrowser.open(f"http://localhost:{port}")
 
     Thread(target=_open_browser).start()
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
