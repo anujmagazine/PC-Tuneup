@@ -132,6 +132,36 @@ Thread(target=_track_cpu, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
+# Battery Monitor (background)
+# ---------------------------------------------------------------------------
+
+_battery_lock = Lock()
+_battery_state = {"just_unplugged": False, "top_drains": []}
+
+
+def _track_battery():
+    """Background thread: watch for unplug events so the UI can notify instantly."""
+    was_plugged = None
+    while True:
+        try:
+            batt = psutil.sensors_battery()
+            if batt is not None:
+                if was_plugged is True and batt.power_plugged is False:
+                    with _cpu_lock:
+                        top = sorted(_cpu_samples.values(), key=lambda x: x["cpu_percent"], reverse=True)[:3]
+                    with _battery_lock:
+                        _battery_state["just_unplugged"] = True
+                        _battery_state["top_drains"] = [p for p in top if p["cpu_percent"] > 5]
+                was_plugged = batt.power_plugged
+        except Exception:
+            pass
+        time.sleep(5)
+
+
+Thread(target=_track_battery, daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
 # Routes: Pages
 # ---------------------------------------------------------------------------
 
@@ -999,6 +1029,32 @@ def _get_thermal_info():
 @app.route("/api/thermal")
 def thermal():
     return jsonify(_get_thermal_info())
+
+
+@app.route("/api/battery-status")
+def battery_status():
+    batt = psutil.sensors_battery()
+    if batt is None:
+        return jsonify({"has_battery": False})
+
+    with _battery_lock:
+        just_unplugged = _battery_state["just_unplugged"]
+        top_drains = _battery_state["top_drains"]
+        _battery_state["just_unplugged"] = False  # one-shot: consumed on read
+
+    eta = None
+    if batt.secsleft and batt.secsleft > 0 and not batt.power_plugged:
+        h, rem = divmod(batt.secsleft, 3600)
+        eta = f"{h}h {rem // 60}m"
+
+    return jsonify({
+        "has_battery": True,
+        "percent": round(batt.percent, 1),
+        "power_plugged": batt.power_plugged,
+        "just_unplugged": just_unplugged,
+        "top_drains": top_drains,
+        "eta": eta,
+    })
 
 
 # ---------------------------------------------------------------------------

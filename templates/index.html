@@ -298,6 +298,17 @@
     <a href="#" style="color:var(--yellow);font-weight:600;" onclick="expandBanner();return false;">Show instructions ›</a>
   </div>
 
+  <!-- Battery Banner (shown on unplug) -->
+  <div class="admin-banner" id="battery-banner" style="display:none;">
+    <div class="admin-banner-top">
+      <div>
+        <strong>🔋 Now on battery.</strong> <span id="battery-eta"></span>
+        <div id="battery-drains" style="margin-top:6px;color:var(--muted);"></div>
+      </div>
+      <button class="banner-dismiss" onclick="dismissBatteryBanner()" title="Dismiss">✕</button>
+    </div>
+  </div>
+
   <!-- Tabs -->
   <div class="tabs" id="main-tabs">
     <button class="tab active" data-tab="dashboard">Fix Problems</button>
@@ -1257,6 +1268,43 @@ document.addEventListener('visibilitychange', () => {
 });
 
 startAutoRefresh();
+
+// ==================== BATTERY MONITOR ====================
+// Watches for unplug events regardless of which tab is open, so you get
+// notified even if you're not looking at the dashboard.
+let _battDismissed = false;
+
+async function loadBatteryStatus() {
+  try {
+    const d = await (await fetch('/api/battery-status')).json();
+    if (!d.has_battery) return; // desktop PC, nothing to show
+    const banner = document.getElementById('battery-banner');
+    if (d.power_plugged) {
+      _battDismissed = false;
+      banner.style.display = 'none';
+      return;
+    }
+    if (d.just_unplugged) _battDismissed = false; // a fresh unplug always re-shows
+    if (_battDismissed) return;
+
+    document.getElementById('battery-eta').textContent = d.eta
+      ? `~${d.eta} remaining at current usage.`
+      : `${d.percent}% remaining.`;
+    const drains = document.getElementById('battery-drains');
+    drains.textContent = d.top_drains.length
+      ? 'Top drains: ' + d.top_drains.map(p => `${esc(p.name)} (${p.cpu_percent}%)`).join(', ')
+      : '';
+    banner.style.display = 'block';
+  } catch(e) {}
+}
+
+function dismissBatteryBanner() {
+  _battDismissed = true;
+  document.getElementById('battery-banner').style.display = 'none';
+}
+
+setInterval(() => { if (!document.hidden) loadBatteryStatus(); }, 5000);
+loadBatteryStatus();
 </script>
 </body>
 </html>
