@@ -4,6 +4,7 @@ A self-hosted web app to diagnose and fix Windows performance issues.
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -137,6 +138,18 @@ Thread(target=_track_cpu, daemon=True).start()
 
 _battery_lock = Lock()
 _battery_state = {"just_unplugged": False, "top_drains": []}
+
+_battery_saver_lock = Lock()
+_battery_saver_state = {
+    "active": False, "prior_plan_guid": None,
+    "deprioritized_pids": [], "suspended_pids": [],
+}
+POWER_SAVER_GUID = "a1841308-3541-4fab-bc81-f71556f20b4a"
+SYNC_APP_NAMES = {"onedrive", "dropbox"}  # prefix-matched: covers OneDrive.exe, OneDrive.Sync.Service.exe, etc.
+PROTECTED_PROCESS_NAMES = {
+    "system", "smss.exe", "csrss.exe", "wininit.exe", "services.exe",
+    "lsass.exe", "svchost.exe", "explorer.exe", "winlogon.exe", "dwm.exe",
+}
 
 
 def _track_battery():
@@ -1054,6 +1067,7 @@ def battery_status():
         "just_unplugged": just_unplugged,
         "top_drains": top_drains,
         "eta": eta,
+        "battery_saver_active": _battery_saver_state["active"],
     })
 
 
@@ -1525,6 +1539,106 @@ def set_high_performance():
         return jsonify({"success": True, "message": "Switched to High Performance power plan."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/battery-saver-mode", methods=["POST"])
+def battery_saver_mode():
+    with _battery_saver_lock:
+        if _battery_saver_state["active"]:
+            # ---- Turn OFF: restore prior plan, priorities, and sync apps ----
+            restored_plan = False
+            if _battery_saver_state["prior_plan_guid"]:
+                r = subprocess.run(
+                    ["powercfg", "/setactive", _battery_saver_state["prior_plan_guid"]],
+                    capture_output=True, text=True, timeout=10
+                )
+                restored_plan = r.returncode == 0
+
+            restored_count = 0
+            for pid in _battery_saver_state["deprioritized_pids"]:
+                try:
+                    psutil.Process(pid).nice(psutil.NORMAL_PRIORITY_CLASS)
+                    restored_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+
+            resumed_count = 0
+            for pid in _battery_saver_state["suspended_pids"]:
+                try:
+                    psutil.Process(pid).resume()
+                    resumed_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+
+            _battery_saver_state.update({
+                "active": False, "prior_plan_guid": None,
+                "deprioritized_pids": [], "suspended_pids": [],
+            })
+
+            msg = f"Battery Saver Mode off. Restored {'your prior power plan, ' if restored_plan else ''}" \
+                  f"{restored_count} process priorit{'y' if restored_count == 1 else 'ies'} and " \
+                  f"{resumed_count} paused app{'' if resumed_count == 1 else 's'}."
+            return jsonify({"success": True, "active": False, "message": msg})
+
+        # ---- Turn ON: switch plan, deprioritize CPU hogs, pause sync apps ----
+        prior_guid = None
+        try:
+            current = subprocess.run(
+                ["powercfg", "/getactivescheme"], capture_output=True, text=True, timeout=10
+            )
+            m = re.search(r"GUID:\s*([0-9a-fA-F-]{36})", current.stdout)
+            if m:
+                prior_guid = m.group(1)
+        except Exception:
+            pass
+
+        plan_switched = False
+        try:
+            r = subprocess.run(
+                ["powercfg", "/setactive", POWER_SAVER_GUID], capture_output=True, text=True, timeout=10
+            )
+            plan_switched = r.returncode == 0
+        except Exception:
+            pass
+
+        with _cpu_lock:
+            candidates = sorted(_cpu_samples.items(), key=lambda kv: kv[1]["cpu_percent"], reverse=True)
+
+        my_pid = os.getpid()
+        deprioritized = []
+        for pid, info in candidates:
+            if len(deprioritized) >= 5:
+                break
+            name = (info.get("name") or "").lower()
+            if pid == my_pid or name in PROTECTED_PROCESS_NAMES or info["cpu_percent"] < 3:
+                continue
+            try:
+                psutil.Process(pid).nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+                deprioritized.append(pid)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        suspended = []
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                name = (proc.info["name"] or "").lower()
+                if any(name.startswith(prefix) for prefix in SYNC_APP_NAMES):
+                    proc.suspend()
+                    suspended.append(proc.info["pid"])
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        _battery_saver_state.update({
+            "active": True, "prior_plan_guid": prior_guid,
+            "deprioritized_pids": deprioritized, "suspended_pids": suspended,
+        })
+
+        parts = []
+        parts.append("Switched to Power Saver plan" if plan_switched else "Could not switch power plan")
+        parts.append(f"deprioritized {len(deprioritized)} background process{'es' if len(deprioritized) != 1 else ''}")
+        if suspended:
+            parts.append(f"paused {len(suspended)} sync app{'s' if len(suspended) != 1 else ''}")
+        return jsonify({"success": True, "active": True, "message": ", ".join(parts) + "."})
 
 
 @app.route("/api/disable-visual-effects", methods=["POST"])

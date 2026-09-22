@@ -304,9 +304,17 @@
       <div>
         <strong>🔋 Now on battery.</strong> <span id="battery-eta"></span>
         <div id="battery-drains" style="margin-top:6px;color:var(--muted);"></div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-sm btn-primary" id="battery-saver-btn" onclick="toggleBatterySaver(this)">⚡ Enable Battery Saver Mode</button>
+        </div>
       </div>
       <button class="banner-dismiss" onclick="dismissBatteryBanner()" title="Dismiss">✕</button>
     </div>
+  </div>
+  <!-- Collapsed hint: stays reachable after dismiss, or after replug while mode is still on -->
+  <div class="admin-banner-hint" id="battery-banner-hint" style="display:none;">
+    <span id="battery-hint-text">🔋 On battery</span>
+    <a href="#" id="battery-hint-toggle" style="color:var(--yellow);font-weight:600;" onclick="toggleBatterySaver(this);return false;">Enable Battery Saver Mode ›</a>
   </div>
 
   <!-- Tabs -->
@@ -1271,36 +1279,69 @@ startAutoRefresh();
 
 // ==================== BATTERY MONITOR ====================
 // Watches for unplug events regardless of which tab is open, so you get
-// notified even if you're not looking at the dashboard.
+// notified even if you're not looking at the dashboard. Battery Saver Mode
+// stays reachable via a persistent hint chip even after the banner is
+// dismissed, or after power is restored while the mode is still active.
 let _battDismissed = false;
+
+function setBatterySaverBtnLabel(el, active) {
+  if (!el) return;
+  el.textContent = active ? '✓ Battery Saver Mode ON — Click to Restore' : '⚡ Enable Battery Saver Mode';
+}
 
 async function loadBatteryStatus() {
   try {
     const d = await (await fetch('/api/battery-status')).json();
     if (!d.has_battery) return; // desktop PC, nothing to show
     const banner = document.getElementById('battery-banner');
-    if (d.power_plugged) {
-      _battDismissed = false;
-      banner.style.display = 'none';
-      return;
-    }
-    if (d.just_unplugged) _battDismissed = false; // a fresh unplug always re-shows
-    if (_battDismissed) return;
+    const hint = document.getElementById('battery-banner-hint');
 
-    document.getElementById('battery-eta').textContent = d.eta
-      ? `~${d.eta} remaining at current usage.`
-      : `${d.percent}% remaining.`;
-    const drains = document.getElementById('battery-drains');
-    drains.textContent = d.top_drains.length
-      ? 'Top drains: ' + d.top_drains.map(p => `${esc(p.name)} (${p.cpu_percent}%)`).join(', ')
-      : '';
-    banner.style.display = 'block';
+    if (d.just_unplugged) _battDismissed = false; // a fresh unplug always re-shows the full banner
+    if (d.power_plugged) _battDismissed = false; // reset so the next unplug shows the full banner again
+
+    setBatterySaverBtnLabel(document.getElementById('battery-saver-btn'), d.battery_saver_active);
+
+    const showFullBanner = !d.power_plugged && !_battDismissed;
+    const showHint = (!d.power_plugged && _battDismissed) || (d.power_plugged && d.battery_saver_active);
+
+    if (showFullBanner) {
+      document.getElementById('battery-eta').textContent = d.eta
+        ? `~${d.eta} remaining at current usage.`
+        : `${d.percent}% remaining.`;
+      const drains = document.getElementById('battery-drains');
+      drains.textContent = d.top_drains.length
+        ? 'Top drains: ' + d.top_drains.map(p => `${esc(p.name)} (${p.cpu_percent}%)`).join(', ')
+        : '';
+    }
+    banner.style.display = showFullBanner ? 'block' : 'none';
+
+    if (showHint) {
+      document.getElementById('battery-hint-text').textContent = d.battery_saver_active
+        ? '🔋 Battery Saver Mode is ON'
+        : '🔋 On battery';
+      document.getElementById('battery-hint-toggle').textContent = d.battery_saver_active
+        ? 'Restore normal settings ›' : 'Enable Battery Saver Mode ›';
+    }
+    hint.style.display = showHint ? 'flex' : 'none';
   } catch(e) {}
 }
 
 function dismissBatteryBanner() {
   _battDismissed = true;
-  document.getElementById('battery-banner').style.display = 'none';
+  loadBatteryStatus();
+}
+
+async function toggleBatterySaver(el) {
+  const orig = el.textContent;
+  el.textContent = '…working…';
+  try {
+    const d = await (await fetch('/api/battery-saver-mode', {method:'POST'})).json();
+    showToast(d.message || d.error || 'Done!');
+  } catch(e) {
+    showToast('Failed: ' + e.message);
+    el.textContent = orig;
+  }
+  loadBatteryStatus();
 }
 
 setInterval(() => { if (!document.hidden) loadBatteryStatus(); }, 5000);
