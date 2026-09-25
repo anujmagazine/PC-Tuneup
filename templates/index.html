@@ -408,6 +408,11 @@
       <strong>How "Last Used" works:</strong> This is estimated from Windows' own launch history (Prefetch), not a guarantee. Some apps — especially Store apps or ones that don't launch a normal .exe — will show "Unknown" instead of a wrong guess. Treat "Unknown" as "we can't tell," not "unused."
     </div>
 
+    <div style="margin-bottom:10px;">
+      <button class="btn btn-outline btn-sm" onclick="loadInstalledApps(true)">↻ Rescan</button>
+      <span id="apps-cache-note" style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px;"></span>
+    </div>
+
     <table>
       <thead><tr><th>App</th><th>Size</th><th>Last Used</th><th>Recommendation</th><th></th></tr></thead>
       <tbody id="apps-table"><tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps...</td></tr></tbody>
@@ -862,30 +867,44 @@ function appRecBadge(rec, text) {
   if (!sev) return `<span style="color:var(--muted);font-size:var(--fs-sm);">${esc(text)}</span>`;
   return `<span class="fix-sev ${sev}" title="${esc(text)}">${label}</span>`;
 }
-async function loadInstalledApps() {
+function appSizeText(app) {
+  if (app.size_mb == null) return '<span style="color:var(--muted);">Unknown</span>';
+  const badges = {
+    measured: '',
+    measured_partial: ' <span style="color:var(--muted);" title="This app has a very large number of files; the size shown is a minimum, the real size may be higher.">(min)</span>',
+    estimated: ' <span style="color:var(--yellow);cursor:help;" title="This app did not report an install folder, so this is the installer\'s self-reported size, which can be stale or inaccurate.">*</span>',
+  };
+  return app.size_mb + ' MB' + (badges[app.size_source] || '');
+}
+async function loadInstalledApps(forceRefresh) {
   const tbody = document.getElementById('apps-table');
   const notice = document.getElementById('apps-usage-notice');
-  tbody.innerHTML = '<tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps...</td></tr>';
+  const cacheNote = document.getElementById('apps-cache-note');
+  tbody.innerHTML = '<tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps... measuring real folder sizes can take up to 30 seconds the first time.</td></tr>';
   notice.innerHTML = '';
+  cacheNote.textContent = '';
   try {
-    const d = await (await fetch('/api/installed-apps')).json();
+    const url = '/api/installed-apps' + (forceRefresh ? '?refresh=1' : '');
+    const d = await (await fetch(url)).json();
     window._appsData = d.apps;
+    cacheNote.textContent = d.cached ? `Showing results from ${d.cache_age_sec}s ago — click Rescan for the latest.` : 'Freshly scanned.';
     if (!d.usage_data_available) {
       notice.innerHTML = `<div class="admin-banner" style="background:var(--m-bg);border-color:var(--m-bd);margin-bottom:16px;">
         <strong>⚠ Usage data unavailable.</strong> Run as Administrator to see which apps you've actually opened recently — otherwise every app shows size only.
       </div>`;
     }
     if (!d.apps.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-issues">No installed apps found.</td></tr>'; return; }
+    const hasEstimated = d.apps.some(a => a.size_source === 'estimated');
     tbody.innerHTML = d.apps.map((app, i) => `<tr>
       <td>
         <div style="font-weight:600;">${esc(app.name)}</div>
         ${app.publisher ? `<div style="font-size:var(--fs-xs);color:var(--muted);">${esc(app.publisher)}</div>` : ''}
       </td>
-      <td>${app.size_mb != null ? app.size_mb + ' MB' : '<span style="color:var(--muted);">Unknown</span>'}</td>
+      <td>${appSizeText(app)}</td>
       <td>${lastUsedText(app.last_used_days)}</td>
       <td>${appRecBadge(app.recommendation, app.recommendation_text)}</td>
       <td>${app.uninstall_string ? `<button class="btn btn-sm ${app.recommendation === 'unused_large' ? 'btn-danger' : 'btn-outline'}" onclick="uninstallApp(${i}, this)">Uninstall</button>` : ''}</td>
-    </tr>`).join('');
+    </tr>`).join('') + (hasEstimated ? `<tr><td colspan="5" style="font-size:var(--fs-xs);color:var(--muted);padding-top:10px;">* Size is the installer's self-reported estimate (no install folder found to measure directly) — treat as approximate.</td></tr>` : '');
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="5" style="color:var(--red);padding:14px;">Failed to load installed apps.</td></tr>';
   }

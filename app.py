@@ -1568,14 +1568,54 @@ def _classify_app(size_mb, last_used_days):
     return "idle", f"Not opened in {last_used_days} days."
 
 
+def _measure_folder_size(path, max_files=20000):
+    """Real on-disk size, since registry EstimatedSize is a static value the installer
+    wrote once and is frequently stale or wrong. Returns (size_mb, was_truncated)."""
+    total = 0
+    count = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(path):
+            for f in filenames:
+                try:
+                    total += os.path.getsize(os.path.join(dirpath, f))
+                except OSError:
+                    pass
+                count += 1
+                if count > max_files:
+                    return round(total / (1024 ** 2), 1), True
+    except OSError:
+        return None, False
+    return round(total / (1024 ** 2), 1), False
+
+
 def _get_installed_apps():
     apps = _read_uninstall_entries()
     prefetch_map, prefetch_accessible = _get_prefetch_last_used()
+
+    # Multiple registry entries can share one InstallLocation (e.g. each Office app -
+    # Word, Excel, OneNote - registers separately but all point at the same shared
+    # install folder), so cache by path to avoid scanning the same folder repeatedly.
+    size_cache = {}
 
     for app in apps:
         exe_name = _guess_exe_name(app["name"], app.get("display_icon"), app.get("install_location"))
         days = prefetch_map.get(exe_name) if exe_name else None
         app["last_used_days"] = round(days) if days is not None else None
+
+        # Prefer a real, measured folder size over the registry's self-reported
+        # (and often stale) EstimatedSize.
+        loc = app.get("install_location")
+        if loc and os.path.isdir(loc):
+            norm_loc = os.path.normcase(os.path.normpath(loc))
+            if norm_loc not in size_cache:
+                size_cache[norm_loc] = _measure_folder_size(loc)
+            measured_mb, truncated = size_cache[norm_loc]
+            if measured_mb is not None:
+                app["size_mb"] = measured_mb
+                app["size_source"] = "measured_partial" if truncated else "measured"
+        if "size_source" not in app:
+            app["size_source"] = "estimated" if app["size_mb"] is not None else None
+
         app["recommendation"], app["recommendation_text"] = _classify_app(app["size_mb"], app["last_used_days"])
         app.pop("display_icon", None)
         app.pop("install_location", None)
@@ -1585,13 +1625,28 @@ def _get_installed_apps():
     return apps, prefetch_accessible
 
 
+_installed_apps_cache = {"data": None, "ts": 0}
+_installed_apps_lock = Lock()
+_INSTALLED_APPS_CACHE_TTL = 300  # measuring real folder sizes takes 10-35s; don't repeat that on every tab visit
+
+
 @app.route("/api/installed-apps")
 def installed_apps():
-    apps, prefetch_accessible = _get_installed_apps()
-    return jsonify({
-        "apps": apps,
-        "usage_data_available": prefetch_accessible,
-    })
+    force_refresh = request.args.get("refresh") == "1"
+    # Serialize so two concurrent requests (e.g. a page reload while a scan is still
+    # in flight) don't each kick off their own redundant full folder-size scan -
+    # GIL and disk contention between two scans made both far slower than either alone.
+    with _installed_apps_lock:
+        cache_age = time.time() - _installed_apps_cache["ts"]
+        if force_refresh or _installed_apps_cache["data"] is None or cache_age > _INSTALLED_APPS_CACHE_TTL:
+            apps, prefetch_accessible = _get_installed_apps()
+            _installed_apps_cache["data"] = {"apps": apps, "usage_data_available": prefetch_accessible}
+            _installed_apps_cache["ts"] = time.time()
+            cached = False
+        else:
+            cached = True
+        cache_age = time.time() - _installed_apps_cache["ts"]
+    return jsonify({**_installed_apps_cache["data"], "cached": cached, "cache_age_sec": round(cache_age)})
 
 
 @app.route("/api/uninstall-app", methods=["POST"])
