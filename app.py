@@ -1423,6 +1423,190 @@ def delete_files():
 
 
 # ---------------------------------------------------------------------------
+# Installed Apps (Storage)
+# ---------------------------------------------------------------------------
+
+def _read_uninstall_entries():
+    """Enumerate installed apps from the registry, same source as Apps & Features."""
+    import winreg
+    uninstall_keys = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+    ]
+    apps = []
+    seen_names = set()
+    for hive, path in uninstall_keys:
+        try:
+            key = winreg.OpenKey(hive, path)
+        except OSError:
+            continue
+        try:
+            i = 0
+            while True:
+                try:
+                    subkey_name = winreg.EnumKey(key, i)
+                except OSError:
+                    break
+                i += 1
+                try:
+                    sub = winreg.OpenKey(key, subkey_name)
+                except OSError:
+                    continue
+                try:
+                    def rd(value_name):
+                        try:
+                            return winreg.QueryValueEx(sub, value_name)[0]
+                        except OSError:
+                            return None
+
+                    name = rd("DisplayName")
+                    if not name or name in seen_names:
+                        continue
+                    if rd("SystemComponent") == 1:
+                        continue
+                    if rd("ParentKeyName") or rd("ReleaseType"):
+                        continue  # update/hotfix entry, not a standalone app
+                    seen_names.add(name)
+
+                    size_kb = rd("EstimatedSize")
+                    apps.append({
+                        "name": name,
+                        "publisher": rd("Publisher"),
+                        "size_mb": round(size_kb / 1024, 1) if size_kb else None,
+                        "install_location": rd("InstallLocation"),
+                        "display_icon": rd("DisplayIcon"),
+                        # Prefer the interactive UninstallString over QuietUninstallString:
+                        # the latter is designed to skip prompts (e.g. Ollama's includes
+                        # "/SILENT"), which would remove the app with no confirmation at
+                        # all - not what "launch the uninstaller" should mean here.
+                        "uninstall_string": rd("UninstallString") or rd("QuietUninstallString"),
+                    })
+                finally:
+                    winreg.CloseKey(sub)
+        finally:
+            winreg.CloseKey(key)
+    return apps
+
+
+def _get_prefetch_last_used():
+    """Map UPPERCASE exe name -> days since last launch, from Prefetch file timestamps.
+    This is a best-effort heuristic, not exact: Prefetch can be disabled, cleared, or
+    miss Store apps and background services entirely. Also, C:\\Windows\\Prefetch is only
+    listable with an elevated (Administrator) token, so this returns accessible=False
+    when running unelevated rather than silently reporting everything as unused."""
+    prefetch_dir = r"C:\Windows\Prefetch"
+    last_used = {}
+    try:
+        filenames = os.listdir(prefetch_dir)
+    except OSError:
+        return last_used, False
+
+    now = time.time()
+    for fname in filenames:
+        if not fname.upper().endswith(".PF"):
+            continue
+        exe_name = fname.rsplit("-", 1)[0].upper()
+        try:
+            mtime = os.path.getmtime(os.path.join(prefetch_dir, fname))
+        except OSError:
+            continue
+        days = (now - mtime) / 86400
+        if exe_name not in last_used or days < last_used[exe_name]:
+            last_used[exe_name] = days
+    return last_used, True
+
+
+_BAD_EXE_HINTS = ("setup", "installer", "uninstall", "update")
+
+
+def _guess_exe_name(app_name, display_icon, install_location):
+    """Best-effort guess at an app's main executable, for matching against Prefetch.
+    Many apps' DisplayIcon points at their installer rather than the app itself
+    (e.g. OneDrive -> OneDriveSetup.exe, Docker Desktop -> Docker Desktop Installer.exe),
+    which would otherwise make an actively-used app look abandoned."""
+    def is_installer(exe_basename):
+        low = exe_basename.lower()
+        return any(hint in low for hint in _BAD_EXE_HINTS)
+
+    if display_icon:
+        icon_path = display_icon.split(",")[0].strip('"')
+        if icon_path.lower().endswith(".exe"):
+            base = os.path.basename(icon_path)
+            if not is_installer(base):
+                return base.upper()
+
+    if install_location and os.path.isdir(install_location):
+        try:
+            exes = [f for f in os.listdir(install_location) if f.lower().endswith(".exe") and not is_installer(f)]
+        except OSError:
+            exes = []
+        if len(exes) == 1:
+            return exes[0].upper()
+        if len(exes) > 1:
+            # Multiple candidates: prefer the one whose name matches the app's display name
+            norm_app = re.sub(r"[^a-z0-9]", "", app_name.lower())
+            for f in exes:
+                norm_exe = re.sub(r"[^a-z0-9]", "", f[:-4].lower())
+                if norm_exe == norm_app or norm_exe in norm_app or norm_app in norm_exe:
+                    return f.upper()
+    return None
+
+
+def _classify_app(size_mb, last_used_days):
+    is_large = size_mb is not None and size_mb >= 500
+    if last_used_days is None:
+        # No usage data (not admin, or app never showed up in Prefetch) - never claim
+        # "unused" without evidence, even for large apps.
+        if is_large:
+            return "unknown_large", f"Large ({size_mb} MB), usage unknown — worth reviewing."
+        return "unknown", "Usage could not be determined for this app."
+    if last_used_days <= 14:
+        return "active", "Used recently — keep."
+    if is_large and last_used_days > 90:
+        return "unused_large", f"Large ({size_mb} MB) and not opened in {last_used_days} days — consider uninstalling."
+    return "idle", f"Not opened in {last_used_days} days."
+
+
+def _get_installed_apps():
+    apps = _read_uninstall_entries()
+    prefetch_map, prefetch_accessible = _get_prefetch_last_used()
+
+    for app in apps:
+        exe_name = _guess_exe_name(app["name"], app.get("display_icon"), app.get("install_location"))
+        days = prefetch_map.get(exe_name) if exe_name else None
+        app["last_used_days"] = round(days) if days is not None else None
+        app["recommendation"], app["recommendation_text"] = _classify_app(app["size_mb"], app["last_used_days"])
+        app.pop("display_icon", None)
+        app.pop("install_location", None)
+
+    # Known sizes first (largest first), unknown sizes last
+    apps.sort(key=lambda a: (a["size_mb"] is None, -(a["size_mb"] or 0)))
+    return apps, prefetch_accessible
+
+
+@app.route("/api/installed-apps")
+def installed_apps():
+    apps, prefetch_accessible = _get_installed_apps()
+    return jsonify({
+        "apps": apps,
+        "usage_data_available": prefetch_accessible,
+    })
+
+
+@app.route("/api/uninstall-app", methods=["POST"])
+def uninstall_app():
+    cmd = request.json.get("uninstall_string")
+    if not cmd:
+        return jsonify({"error": "No uninstaller is registered for this app. Remove it from Windows Settings > Apps instead."}), 400
+    try:
+        subprocess.Popen(cmd, shell=True)
+        return jsonify({"success": True, "message": "Uninstaller launched — follow the on-screen prompts to finish."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Startup Programs
 # ---------------------------------------------------------------------------
 

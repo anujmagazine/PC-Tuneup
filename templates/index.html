@@ -321,6 +321,7 @@
   <div class="tabs" id="main-tabs">
     <button class="tab active" data-tab="dashboard">Fix Problems</button>
     <button class="tab" data-tab="cleanup">Free Space</button>
+    <button class="tab" data-tab="storage">Storage</button>
     <button class="tab" data-tab="processes">Running Apps</button>
     <button class="tab" data-tab="startup">Startup Apps</button>
     <button class="tab" data-tab="health">PC Health</button>
@@ -394,6 +395,23 @@
       <button class="btn btn-primary" id="dup-scan-btn" onclick="scanDuplicates()">Scan for Duplicates</button>
     </div>
     <div id="dup-results"></div>
+  </div>
+
+  <!-- ==================== STORAGE ==================== -->
+  <div id="tab-storage" class="tab-content">
+    <div class="section-title">Installed Apps by Size</div>
+    <div class="section-desc">See which installed apps take the most space, and whether you've actually opened them recently.</div>
+
+    <div id="apps-usage-notice"></div>
+
+    <div class="tip">
+      <strong>How "Last Used" works:</strong> This is estimated from Windows' own launch history (Prefetch), not a guarantee. Some apps — especially Store apps or ones that don't launch a normal .exe — will show "Unknown" instead of a wrong guess. Treat "Unknown" as "we can't tell," not "unused."
+    </div>
+
+    <table>
+      <thead><tr><th>App</th><th>Size</th><th>Last Used</th><th>Recommendation</th><th></th></tr></thead>
+      <tbody id="apps-table"><tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps...</td></tr></tbody>
+    </table>
   </div>
 
   <!-- ==================== RUNNING APPS ==================== -->
@@ -595,6 +613,7 @@ function onTab(n) {
   if (n === 'processes') { loadProcesses(); loadLeaks(); }
   if (n === 'startup') loadStartup();
   if (n === 'cleanup') loadCleanup();
+  if (n === 'storage') loadInstalledApps();
   if (n === 'health') { loadDiskHealth(); loadThermal(); loadServices(); loadPowerPlan(); }
   if (n === 'network') loadNetwork();
 }
@@ -828,6 +847,61 @@ async function loadCleanup() {
   </div>
   <button class="btn btn-outline" onclick="doAction('/api/run-disk-cleanup', this)">Open Windows Disk Cleanup</button>
   <span style="font-size:var(--fs-sm);color:var(--muted);margin-left:8px;">The built-in Windows tool for even deeper cleaning.</span>`;
+}
+
+// ==================== INSTALLED APPS (STORAGE) ====================
+function lastUsedText(days) {
+  if (days == null) return '<span style="color:var(--muted);">Unknown</span>';
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
+}
+function appRecBadge(rec, text) {
+  const sev = {unused_large:'high', idle:'medium', unknown_large:'medium', active:'low'}[rec];
+  const label = {unused_large:'Consider Uninstalling', idle:'Idle', unknown_large:'Review', active:'Active'}[rec] || 'Unknown';
+  if (!sev) return `<span style="color:var(--muted);font-size:var(--fs-sm);">${esc(text)}</span>`;
+  return `<span class="fix-sev ${sev}" title="${esc(text)}">${label}</span>`;
+}
+async function loadInstalledApps() {
+  const tbody = document.getElementById('apps-table');
+  const notice = document.getElementById('apps-usage-notice');
+  tbody.innerHTML = '<tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps...</td></tr>';
+  notice.innerHTML = '';
+  try {
+    const d = await (await fetch('/api/installed-apps')).json();
+    window._appsData = d.apps;
+    if (!d.usage_data_available) {
+      notice.innerHTML = `<div class="admin-banner" style="background:var(--m-bg);border-color:var(--m-bd);margin-bottom:16px;">
+        <strong>⚠ Usage data unavailable.</strong> Run as Administrator to see which apps you've actually opened recently — otherwise every app shows size only.
+      </div>`;
+    }
+    if (!d.apps.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-issues">No installed apps found.</td></tr>'; return; }
+    tbody.innerHTML = d.apps.map((app, i) => `<tr>
+      <td>
+        <div style="font-weight:600;">${esc(app.name)}</div>
+        ${app.publisher ? `<div style="font-size:var(--fs-xs);color:var(--muted);">${esc(app.publisher)}</div>` : ''}
+      </td>
+      <td>${app.size_mb != null ? app.size_mb + ' MB' : '<span style="color:var(--muted);">Unknown</span>'}</td>
+      <td>${lastUsedText(app.last_used_days)}</td>
+      <td>${appRecBadge(app.recommendation, app.recommendation_text)}</td>
+      <td>${app.uninstall_string ? `<button class="btn btn-sm ${app.recommendation === 'unused_large' ? 'btn-danger' : 'btn-outline'}" onclick="uninstallApp(${i}, this)">Uninstall</button>` : ''}</td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--red);padding:14px;">Failed to load installed apps.</td></tr>';
+  }
+}
+async function uninstallApp(i, btn) {
+  const app = window._appsData[i];
+  if (!confirm(`Launch the uninstaller for "${app.name}"?\n\nThis opens the app's own uninstall wizard — nothing is removed automatically. Follow the on-screen prompts to finish.`)) return;
+  btn.disabled = true; btn.textContent = 'Launching...';
+  try {
+    const d = await (await fetch('/api/uninstall-app', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({uninstall_string: app.uninstall_string})})).json();
+    showToast(d.message || d.error || 'Done!');
+    btn.textContent = 'Launched';
+  } catch(e) {
+    showToast('Failed: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Uninstall';
+  }
 }
 
 // ==================== FAN DIAGNOSIS ====================
