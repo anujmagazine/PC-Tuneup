@@ -201,6 +201,11 @@
     70% { box-shadow: 0 0 0 8px transparent; }
     100% { box-shadow: 0 0 0 0 transparent; }
   }
+  @keyframes rowflash {
+    0%, 100% { background: transparent; }
+    30% { background: var(--h-bg); }
+  }
+  tr.row-flash { animation: rowflash 1.4s ease-out 2; }
 
   /* Fix-all banner */
   .fixall-banner {
@@ -401,6 +406,8 @@
   <div id="tab-storage" class="tab-content">
     <div class="section-title">Installed Apps by Size</div>
     <div class="section-desc">See which installed apps take the most space, and whether you've actually opened them recently.</div>
+
+    <div id="reclaimable-summary"></div>
 
     <div id="apps-usage-notice"></div>
 
@@ -876,6 +883,40 @@ function appSizeText(app) {
   };
   return app.size_mb + ' MB' + (badges[app.size_source] || '');
 }
+function renderReclaimableSummary(apps) {
+  const el = document.getElementById('reclaimable-summary');
+  const candidates = apps
+    .map((a, i) => ({...a, _i: i}))
+    .filter(a => a.recommendation === 'unused_large' && a.size_mb != null);
+
+  if (!candidates.length) {
+    el.innerHTML = `<div class="admin-banner" style="background:var(--l-bg);border-color:var(--l-bd);margin-bottom:16px;">
+      <strong style="color:var(--green);">✓ Nothing obviously reclaimable right now.</strong> No large apps are flagged as unused.
+    </div>`;
+    return;
+  }
+
+  const totalMb = candidates.reduce((s, a) => s + a.size_mb, 0);
+  const totalGb = (totalMb / 1024).toFixed(1);
+  window._reclaimableRowIndexes = candidates.map(a => a._i);
+  el.innerHTML = `<div class="admin-banner" style="background:var(--h-bg);border-color:var(--h-bd);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div><strong style="color:var(--red);">💾 ~${totalGb} GB could be freed</strong> by uninstalling ${candidates.length} app${candidates.length === 1 ? '' : 's'} you haven't opened in 90+ days.</div>
+    <button class="btn btn-sm btn-danger" onclick="highlightReclaimable()">Show me ›</button>
+  </div>`;
+}
+function highlightReclaimable() {
+  const indexes = window._reclaimableRowIndexes || [];
+  if (!indexes.length) return;
+  const firstRow = document.getElementById(`app-row-${indexes[0]}`);
+  if (firstRow) firstRow.scrollIntoView({behavior: 'smooth', block: 'center'});
+  indexes.forEach(i => {
+    const row = document.getElementById(`app-row-${i}`);
+    if (!row) return;
+    row.classList.remove('row-flash');
+    void row.offsetWidth; // restart the animation if already applied
+    row.classList.add('row-flash');
+  });
+}
 async function loadInstalledApps(forceRefresh) {
   const tbody = document.getElementById('apps-table');
   const notice = document.getElementById('apps-usage-notice');
@@ -888,6 +929,7 @@ async function loadInstalledApps(forceRefresh) {
     const d = await (await fetch(url)).json();
     window._appsData = d.apps;
     cacheNote.textContent = d.cached ? `Showing results from ${d.cache_age_sec}s ago — click Rescan for the latest.` : 'Freshly scanned.';
+    renderReclaimableSummary(d.apps);
     if (!d.usage_data_available) {
       notice.innerHTML = `<div class="admin-banner" style="background:var(--m-bg);border-color:var(--m-bd);margin-bottom:16px;">
         <strong>⚠ Usage data unavailable.</strong> Run as Administrator to see which apps you've actually opened recently — otherwise every app shows size only.
@@ -895,7 +937,7 @@ async function loadInstalledApps(forceRefresh) {
     }
     if (!d.apps.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-issues">No installed apps found.</td></tr>'; return; }
     const hasEstimated = d.apps.some(a => a.size_source === 'estimated');
-    tbody.innerHTML = d.apps.map((app, i) => `<tr>
+    tbody.innerHTML = d.apps.map((app, i) => `<tr id="app-row-${i}">
       <td>
         <div style="font-weight:600;">${esc(app.name)}</div>
         ${app.publisher ? `<div style="font-size:var(--fs-xs);color:var(--muted);">${esc(app.publisher)}</div>` : ''}
