@@ -276,7 +276,7 @@
   </div>
   <div class="hdr-right">
     <span id="admin-badge" class="badge badge-limited">Checking...</span>
-    <button class="refresh-btn" onclick="refreshAll()">↻ Scan Again</button>
+    <button class="refresh-btn" id="scan-again-btn" onclick="scanAgainClicked(this)">↻ Scan Again</button>
   </div>
 </header>
 
@@ -611,9 +611,11 @@ function startBannerCountdown() {
 }
 
 // ==================== TABS ====================
+let _activeTab = 'dashboard';
 document.querySelectorAll('#main-tabs .tab').forEach(tab => {
   tab.addEventListener('click', () => {
     const name = tab.dataset.tab;
+    _activeTab = name;
     document.querySelectorAll('#main-tabs .tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1379,8 +1381,23 @@ async function doAction(url, btn) {
 }
 async function doActionRefresh(url, btn) { await doAction(url, btn); setTimeout(refreshAll, 1500); }
 
-function refreshAll() { loadOverview(); loadThermalDash(); loadDiagnosis(); }
+function refreshAll() {
+  loadOverview();
+  loadThermalDash();
+  loadDiagnosis();
+  // "Scan Again" is meant to refresh whatever you're actually looking at, not just
+  // the dashboard stats behind the scenes - otherwise clicking it while on another
+  // tab silently does nothing visible and looks broken.
+  if (_activeTab !== 'dashboard') onTab(_activeTab);
+}
 refreshAll();
+function scanAgainClicked(btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Scanning...';
+  refreshAll();
+  setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; }, 1200);
+}
 
 // ==================== AUTO-REFRESH ====================
 // Polls dashboard data every 5s so the UI reflects live system state without
