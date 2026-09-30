@@ -1662,6 +1662,158 @@ def uninstall_app():
 
 
 # ---------------------------------------------------------------------------
+# Large Files & Folders (Storage)
+# ---------------------------------------------------------------------------
+
+_LARGE_FILE_MIN_MB = 100
+_LARGE_FILE_MAX_SECONDS_PER_FOLDER = 6  # bounds total scan time regardless of folder size
+_LARGE_FILE_SCAN_CAP = 300000  # absolute circuit breaker per folder (e.g. symlink loops), rarely hit
+
+# (display label, registry value name under User Shell Folders, fallback subfolder)
+# Desktop/Documents/Pictures are commonly redirected into OneDrive - resolving the
+# real path via the registry avoids silently skipping folders that don't exist at
+# the classic C:\Users\<user>\<Folder> location.
+_LARGE_FILE_SCAN_FOLDERS = [
+    ("Downloads", "{374DE290-123F-4565-9164-39C4925E467B}", "Downloads"),
+    ("Desktop", "Desktop", "Desktop"),
+    ("Documents", "Personal", "Documents"),
+    ("Pictures", "My Pictures", "Pictures"),
+    ("Videos", "My Video", "Videos"),
+]
+
+
+def _resolve_known_folder(reg_value_name, fallback_subfolder):
+    import winreg
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+        )
+        raw = winreg.QueryValueEx(key, reg_value_name)[0]
+        winreg.CloseKey(key)
+        path = os.path.expandvars(raw)
+        if os.path.isdir(path):
+            return path
+    except OSError:
+        pass
+    return os.path.join(os.path.expanduser("~"), fallback_subfolder)
+
+_INSTALLER_EXTS = {".exe", ".msi"}
+_DISK_IMAGE_EXTS = {".iso", ".vhd", ".vhdx"}
+_ARCHIVE_EXTS = {".zip", ".rar", ".7z", ".tar", ".gz"}
+_VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".wmv"}
+
+
+def _classify_large_file(ext, age_days):
+    ext = ext.lower()
+    if ext in _INSTALLER_EXTS:
+        return "installer", f"Installer file, {age_days}d old — safe to delete once the app is installed."
+    if ext in _DISK_IMAGE_EXTS:
+        return "disk_image", f"Disk image, {age_days}d old — often a leftover installer, usually safe to delete."
+    if ext in _ARCHIVE_EXTS:
+        if age_days > 90:
+            return "stale_archive", f"Archive untouched in {age_days} days — check if you still need the contents."
+        return "archive", "Compressed archive — check if you still need the contents."
+    if ext in _VIDEO_EXTS:
+        if age_days > 90:
+            return "stale_video", f"Video untouched in {age_days} days — consider moving it to external storage."
+        return "video", "Video file."
+    if age_days > 180:
+        return "stale", f"Large file untouched in {age_days} days — review whether you still need it."
+    return "other", "Large file."
+
+
+def _scan_large_files():
+    min_bytes = _LARGE_FILE_MIN_MB * 1024 * 1024
+    now = time.time()
+    results = []
+    any_truncated = False
+
+    # A time budget per folder (rather than one shared file-count cap) matters here:
+    # a single huge folder (e.g. Downloads with 250k+ files from extracted archives)
+    # would otherwise consume the entire budget and starve every other folder,
+    # leaving Desktop/Documents/Pictures/Videos completely unscanned.
+    for folder, reg_value_name, fallback in _LARGE_FILE_SCAN_FOLDERS:
+        scan_path = _resolve_known_folder(reg_value_name, fallback)
+        if not os.path.isdir(scan_path):
+            continue
+        folder_start = time.time()
+        folder_truncated = False
+        file_count = 0
+        for dirpath, dirnames, filenames in os.walk(scan_path):
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            if time.time() - folder_start > _LARGE_FILE_MAX_SECONDS_PER_FOLDER:
+                folder_truncated = True
+                break
+            for f in filenames:
+                file_count += 1
+                if file_count % 500 == 0 and time.time() - folder_start > _LARGE_FILE_MAX_SECONDS_PER_FOLDER:
+                    folder_truncated = True
+                    break
+                if file_count > _LARGE_FILE_SCAN_CAP:
+                    folder_truncated = True
+                    break
+                fp = os.path.join(dirpath, f)
+                try:
+                    st = os.stat(fp)
+                except OSError:
+                    continue
+                if st.st_size < min_bytes:
+                    continue
+                age_days = round((now - st.st_mtime) / 86400)
+                ext = os.path.splitext(f)[1]
+                category, note = _classify_large_file(ext, age_days)
+                results.append({
+                    "path": fp,
+                    "folder": folder,
+                    "size_mb": round(st.st_size / (1024 ** 2), 1),
+                    "age_days": age_days,
+                    "category": category,
+                    "note": note,
+                })
+            if folder_truncated:
+                break
+        if folder_truncated:
+            any_truncated = True
+
+    results.sort(key=lambda r: -r["size_mb"])
+    return results[:200], any_truncated
+
+
+_large_files_cache = {"data": None, "ts": 0}
+_large_files_lock = Lock()
+_LARGE_FILES_CACHE_TTL = 300
+
+
+@app.route("/api/large-files")
+def large_files():
+    force_refresh = request.args.get("refresh") == "1"
+    with _large_files_lock:
+        cache_age = time.time() - _large_files_cache["ts"]
+        if force_refresh or _large_files_cache["data"] is None or cache_age > _LARGE_FILES_CACHE_TTL:
+            files, truncated = _scan_large_files()
+            _large_files_cache["data"] = {"files": files, "truncated": truncated}
+            _large_files_cache["ts"] = time.time()
+            cached = False
+        else:
+            cached = True
+        cache_age = time.time() - _large_files_cache["ts"]
+    return jsonify({**_large_files_cache["data"], "cached": cached, "cache_age_sec": round(cache_age)})
+
+
+@app.route("/api/open-file-location", methods=["POST"])
+def open_file_location():
+    filepath = request.json.get("path", "")
+    if not filepath or not os.path.isfile(filepath):
+        return jsonify({"error": "File not found."}), 404
+    try:
+        subprocess.Popen(["explorer", f"/select,{filepath}"])
+        return jsonify({"success": True, "message": "Opened in File Explorer."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Startup Programs
 # ---------------------------------------------------------------------------
 

@@ -424,6 +424,21 @@
       <thead><tr><th>App</th><th>Size</th><th>Last Used</th><th>Recommendation</th><th></th></tr></thead>
       <tbody id="apps-table"><tr><td colspan="5" class="loading"><span class="spinner"></span>Reading installed apps...</td></tr></tbody>
     </table>
+
+    <hr class="divider">
+
+    <div class="section-title">Large Files & Folders</div>
+    <div class="section-desc">Files over 100 MB in your Downloads, Desktop, Documents, Pictures, and Videos folders — the usual places space quietly disappears to.</div>
+
+    <div style="margin-bottom:10px;">
+      <button class="btn btn-outline btn-sm" onclick="loadLargeFiles(true)">↻ Rescan</button>
+      <span id="files-cache-note" style="font-size:var(--fs-xs);color:var(--muted);margin-left:8px;"></span>
+    </div>
+
+    <table>
+      <thead><tr><th>File</th><th>Size</th><th>Age</th><th>Note</th><th></th></tr></thead>
+      <tbody id="files-table"><tr><td colspan="5" class="loading"><span class="spinner"></span>Scanning for large files...</td></tr></tbody>
+    </table>
   </div>
 
   <!-- ==================== RUNNING APPS ==================== -->
@@ -627,7 +642,7 @@ function onTab(n) {
   if (n === 'processes') { loadProcesses(); loadLeaks(); }
   if (n === 'startup') loadStartup();
   if (n === 'cleanup') loadCleanup();
-  if (n === 'storage') loadInstalledApps();
+  if (n === 'storage') { loadInstalledApps(); loadLargeFiles(); }
   if (n === 'health') { loadDiskHealth(); loadThermal(); loadServices(); loadPowerPlan(); }
   if (n === 'network') loadNetwork();
 }
@@ -885,34 +900,45 @@ function appSizeText(app) {
   };
   return app.size_mb + ' MB' + (badges[app.size_source] || '');
 }
-function renderReclaimableSummary(apps) {
+function renderReclaimableSummary() {
   const el = document.getElementById('reclaimable-summary');
-  const candidates = apps
-    .map((a, i) => ({...a, _i: i}))
-    .filter(a => a.recommendation === 'unused_large' && a.size_mb != null);
+  const apps = window._appsData;
+  const files = window._filesData;
+  if (apps === undefined && files === undefined) { el.innerHTML = ''; return; } // neither loaded yet
+
+  const appCandidates = (apps || [])
+    .map((a, i) => ({ rowId: `app-row-${i}`, size_mb: a.size_mb, ok: a.recommendation === 'unused_large' && a.size_mb != null }))
+    .filter(c => c.ok);
+  const fileCandidates = (files || [])
+    .map((f, i) => ({ rowId: `file-row-${i}`, size_mb: f.size_mb, ok: ['installer', 'disk_image', 'stale_archive', 'stale_video', 'stale'].includes(f.category) }))
+    .filter(c => c.ok);
+  const candidates = [...appCandidates, ...fileCandidates];
 
   if (!candidates.length) {
     el.innerHTML = `<div class="admin-banner" style="background:var(--l-bg);border-color:var(--l-bd);margin-bottom:16px;">
-      <strong style="color:var(--green);">✓ Nothing obviously reclaimable right now.</strong> No large apps are flagged as unused.
+      <strong style="color:var(--green);">✓ Nothing obviously reclaimable right now.</strong> No unused apps or stale large files flagged.
     </div>`;
     return;
   }
 
-  const totalMb = candidates.reduce((s, a) => s + a.size_mb, 0);
+  const totalMb = candidates.reduce((s, c) => s + c.size_mb, 0);
   const totalGb = (totalMb / 1024).toFixed(1);
-  window._reclaimableRowIndexes = candidates.map(a => a._i);
+  window._reclaimableRowIds = candidates.map(c => c.rowId);
+  const parts = [];
+  if (appCandidates.length) parts.push(`${appCandidates.length} unused app${appCandidates.length === 1 ? '' : 's'}`);
+  if (fileCandidates.length) parts.push(`${fileCandidates.length} stale file${fileCandidates.length === 1 ? '' : 's'}`);
   el.innerHTML = `<div class="admin-banner" style="background:var(--h-bg);border-color:var(--h-bd);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-    <div><strong style="color:var(--red);">💾 ~${totalGb} GB could be freed</strong> by uninstalling ${candidates.length} app${candidates.length === 1 ? '' : 's'} you haven't opened in 90+ days.</div>
+    <div><strong style="color:var(--red);">💾 ~${totalGb} GB could be freed</strong> — ${parts.join(' + ')}.</div>
     <button class="btn btn-sm btn-danger" onclick="highlightReclaimable()">Show me ›</button>
   </div>`;
 }
 function highlightReclaimable() {
-  const indexes = window._reclaimableRowIndexes || [];
-  if (!indexes.length) return;
-  const firstRow = document.getElementById(`app-row-${indexes[0]}`);
+  const ids = window._reclaimableRowIds || [];
+  if (!ids.length) return;
+  const firstRow = document.getElementById(ids[0]);
   if (firstRow) firstRow.scrollIntoView({behavior: 'smooth', block: 'center'});
-  indexes.forEach(i => {
-    const row = document.getElementById(`app-row-${i}`);
+  ids.forEach(id => {
+    const row = document.getElementById(id);
     if (!row) return;
     row.classList.remove('row-flash');
     void row.offsetWidth; // restart the animation if already applied
@@ -931,7 +957,7 @@ async function loadInstalledApps(forceRefresh) {
     const d = await (await fetch(url)).json();
     window._appsData = d.apps;
     cacheNote.textContent = d.cached ? `Showing results from ${d.cache_age_sec}s ago — click Rescan for the latest.` : 'Freshly scanned.';
-    renderReclaimableSummary(d.apps);
+    renderReclaimableSummary();
     if (!d.usage_data_available) {
       notice.innerHTML = `<div class="admin-banner" style="background:var(--m-bg);border-color:var(--m-bd);margin-bottom:16px;">
         <strong>⚠ Usage data unavailable.</strong> Run as Administrator to see which apps you've actually opened recently — otherwise every app shows size only.
@@ -964,6 +990,66 @@ async function uninstallApp(i, btn) {
   } catch(e) {
     showToast('Failed: ' + e.message);
     btn.disabled = false; btn.textContent = 'Uninstall';
+  }
+}
+
+// ==================== LARGE FILES (STORAGE) ====================
+function fileCatBadge(f) {
+  const sev = {installer:'high', disk_image:'high', stale_archive:'medium', stale_video:'medium', stale:'medium'}[f.category];
+  const label = {installer:'Delete Candidate', disk_image:'Delete Candidate', stale_archive:'Review', stale_video:'Review', stale:'Review'}[f.category];
+  if (!sev) return `<span style="color:var(--muted);font-size:var(--fs-sm);">${esc(f.note)}</span>`;
+  return `<span class="fix-sev ${sev}" title="${esc(f.note)}">${label}</span>`;
+}
+async function loadLargeFiles(forceRefresh) {
+  const tbody = document.getElementById('files-table');
+  const cacheNote = document.getElementById('files-cache-note');
+  tbody.innerHTML = '<tr><td colspan="5" class="loading"><span class="spinner"></span>Scanning for large files...</td></tr>';
+  cacheNote.textContent = '';
+  try {
+    const url = '/api/large-files' + (forceRefresh ? '?refresh=1' : '');
+    const d = await (await fetch(url)).json();
+    window._filesData = d.files;
+    cacheNote.textContent = d.cached ? `Showing results from ${d.cache_age_sec}s ago — click Rescan for the latest.` : 'Freshly scanned.';
+    renderReclaimableSummary();
+    if (!d.files.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-issues">No files over 100 MB found in the scanned folders.</td></tr>'; return; }
+    tbody.innerHTML = d.files.map((f, i) => `<tr id="file-row-${i}">
+      <td>
+        <div style="font-weight:600;word-break:break-all;">${esc(f.path.split('\\').pop())}</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted);">${esc(f.folder)}</div>
+      </td>
+      <td>${f.size_mb} MB</td>
+      <td>${f.age_days}d ago</td>
+      <td>${fileCatBadge(f)}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="showInFolder(${i}, this)">Show</button>
+        <button class="btn btn-sm ${['installer','disk_image'].includes(f.category) ? 'btn-danger' : 'btn-outline'}" onclick="deleteLargeFile(${i}, this)">Delete</button>
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--red);padding:14px;">Failed to scan for large files.</td></tr>';
+  }
+}
+async function showInFolder(i, btn) {
+  const f = window._filesData[i];
+  try {
+    const d = await (await fetch('/api/open-file-location', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: f.path})})).json();
+    if (d.error) showToast(d.error);
+  } catch(e) { showToast('Failed to open folder.'); }
+}
+async function deleteLargeFile(i, btn) {
+  const f = window._filesData[i];
+  if (!confirm(`Delete this file?\n\n${f.path}\n(${f.size_mb} MB)`)) return;
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const d = await (await fetch('/api/delete-file', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: f.path})})).json();
+    if (d.success) {
+      document.getElementById(`file-row-${i}`).innerHTML = `<td colspan="5"><span style="color:var(--green);font-size:var(--fs-sm);">Deleted — freed ${d.freed_mb} MB</span></td>`;
+      showToast(d.message);
+    } else {
+      showToast(d.error); btn.disabled = false; btn.textContent = 'Delete';
+    }
+  } catch(e) {
+    showToast('Delete failed.'); btn.disabled = false; btn.textContent = 'Delete';
   }
 }
 
